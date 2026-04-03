@@ -1,5 +1,7 @@
 /**
- * main.js — app bootstrap, toolbar, keyboard shortcuts, file I/O
+ * main.js — app bootstrap, toolbar, keyboard shortcuts, file I/O, settings
+ *
+ * Phase 3: settings modal wired to GET/PUT /config.
  */
 window.Toast = {
   show(msg, type='', dur=3000) {
@@ -37,7 +39,7 @@ window.Modal = {
   _syncHeader();
   DslPreview.schedule();
 
-  // Model type + name
+  // ── Model type + name ────────────────────────────────────────────────────
   document.getElementById('sel-model-type').addEventListener('change', e=>{
     Store.patch({model_type:e.target.value}); onChange(); });
   document.getElementById('inp-model-name').addEventListener('change', e=>{
@@ -45,7 +47,7 @@ window.Modal = {
     e.target.value=n; Store.patch({model_name:n});
     document.getElementById('model-title').textContent=n; onChange(); });
 
-  // Undo/Redo
+  // ── Undo / Redo / Delete / Fit ────────────────────────────────────────────
   document.getElementById('btn-undo').addEventListener('click',()=>{
     if(Store.undo()){_reload();Forms.refresh();onChange();} });
   document.getElementById('btn-redo').addEventListener('click',()=>{
@@ -53,13 +55,13 @@ window.Modal = {
   document.getElementById('btn-del').addEventListener('click',()=>Canvas.deleteSelected());
   document.getElementById('btn-fit').addEventListener('click',()=>Canvas.fitView());
 
-  // New
+  // ── New ──────────────────────────────────────────────────────────────────
   document.getElementById('btn-new').addEventListener('click', async ()=>{
     const ok=await Modal.show('New Model','Discard current model?','Discard','Cancel');
     if(!ok) return;
     Store.reset(); _reload(); Forms.refresh(); _syncHeader(); onChange(); });
 
-  // Load DSL
+  // ── Load DSL ─────────────────────────────────────────────────────────────
   document.getElementById('btn-load-dsl').addEventListener('click',()=>
     document.getElementById('file-input-dsl').click());
   document.getElementById('file-input-dsl').addEventListener('change', async e=>{
@@ -70,7 +72,7 @@ window.Modal = {
       Toast.show('Loaded: '+proj.model_name,'success');
     } catch(err){ Toast.show('Parse error: '+err.message,'error'); } });
 
-  // Load Project
+  // ── Load Project ──────────────────────────────────────────────────────────
   document.getElementById('btn-load-project').addEventListener('click',()=>
     document.getElementById('file-input-project').click());
   document.getElementById('file-input-project').addEventListener('change', async e=>{
@@ -81,13 +83,13 @@ window.Modal = {
       Toast.show('Project loaded: '+proj.model_name,'success');
     } catch(err){ Toast.show('Load error: '+err.message,'error'); } });
 
-  // Save Project
+  // ── Save Project ──────────────────────────────────────────────────────────
   document.getElementById('btn-save').addEventListener('click',()=>{
     const p=Store.get();
     _dl(new Blob([JSON.stringify(p,null,2)],{type:'application/json'}),(p.model_name||'model')+'.json');
     Toast.show('Project saved','success'); });
 
-  // Export DSL
+  // ── Export DSL ────────────────────────────────────────────────────────────
   document.getElementById('btn-export-dsl').addEventListener('click', async ()=>{
     await DslPreview.renderNow();
     const dsl=DslPreview.getLast();
@@ -95,7 +97,7 @@ window.Modal = {
     _dl(new Blob([dsl],{type:'text/plain'}),(Store.get().model_name||'model')+'.txt');
     Toast.show('DSL exported','success'); });
 
-  // Run Codegen
+  // ── Run Codegen ───────────────────────────────────────────────────────────
   document.getElementById('btn-codegen').addEventListener('click', async ()=>{
     await DslPreview.renderNow();
     const dsl=DslPreview.getLast();
@@ -115,7 +117,52 @@ window.Modal = {
       }
     } catch(err){ Toast.show('Codegen failed: '+err.message,'error'); } });
 
-  // Keyboard
+  // ── Settings modal ────────────────────────────────────────────────────────
+  document.getElementById('btn-settings').addEventListener('click', async ()=>{
+    // Load current config from backend
+    let cfg = {};
+    try { cfg = await Api.getConfig(); }
+    catch(e) { Toast.show('Cannot load config: '+e.message,'error'); return; }
+
+    const overlay = document.getElementById('settings-overlay');
+    document.getElementById('cfg-codegen-path').value = cfg.codegen_path || '';
+    document.getElementById('cfg-host').value         = cfg.host         || '127.0.0.1';
+    document.getElementById('cfg-port').value         = cfg.port         || 8765;
+    document.getElementById('settings-status').textContent = '';
+    overlay.classList.remove('hidden');
+  });
+
+  document.getElementById('settings-cancel').addEventListener('click',()=>{
+    document.getElementById('settings-overlay').classList.add('hidden'); });
+
+  document.getElementById('settings-save').addEventListener('click', async ()=>{
+    const statusEl = document.getElementById('settings-status');
+    statusEl.textContent = 'Saving\u2026';
+    statusEl.className = '';
+    const payload = {
+      codegen_path: document.getElementById('cfg-codegen-path').value.trim(),
+      host:         document.getElementById('cfg-host').value.trim(),
+      port:         parseInt(document.getElementById('cfg-port').value, 10) || 8765
+    };
+    try {
+      await Api.updateConfig(payload);
+      statusEl.textContent = '\u2713 Saved. Restart server for host/port changes to take effect.';
+      statusEl.className = 'settings-ok';
+      Toast.show('Settings saved','success');
+      setTimeout(()=>document.getElementById('settings-overlay').classList.add('hidden'), 1200);
+    } catch(e) {
+      statusEl.textContent = 'Error: '+e.message;
+      statusEl.className = 'settings-err';
+    }
+  });
+
+  // Close settings overlay on backdrop click
+  document.getElementById('settings-overlay').addEventListener('click', e=>{
+    if(e.target===document.getElementById('settings-overlay'))
+      document.getElementById('settings-overlay').classList.add('hidden');
+  });
+
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────
   document.addEventListener('keydown', e=>{
     const tag=document.activeElement.tagName;
     if(tag==='INPUT'||tag==='TEXTAREA') return;
@@ -126,8 +173,13 @@ window.Modal = {
       e.preventDefault(); if(Store.redo()){_reload();Forms.refresh();onChange();}}
     if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();
       document.getElementById('btn-save').click();}
+    if(e.key==='Escape') {
+      document.getElementById('settings-overlay').classList.add('hidden');
+      Modal.hide();
+    }
   });
 
+  // ── Internal helpers ──────────────────────────────────────────────────────
   function onSelect(sid) { Forms.showInspector(sid); _status(); }
   function onChange()    { DslPreview.schedule(); _undoRedo(); _status(); }
   function _reload()     { Canvas.loadProject(Store.get()); }
