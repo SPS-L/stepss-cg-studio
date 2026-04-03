@@ -42,7 +42,7 @@ These decisions were made before implementation and drive the architecture throu
 ## 3. Technology Stack
 
 | Layer | Technology | Rationale |
-|-------|------------|-----------|
+|-------|------------|-----------| 
 | Backend API | FastAPI + uvicorn | Fast async Python, auto-docs at `/docs`, zero config |
 | DSL parse/emit | Pure Python (`dsl_parser.py`, `dsl_emitter.py`) | No extra dependencies |
 | Canvas | [Drawflow](https://github.com/jerosoler/Drawflow) (MIT, CDN) | Drag-drop node graph, zero-build JS |
@@ -74,16 +74,17 @@ stepss-cg-studio/
 │   ├── dsl_emitter.py          # ModelProject dict → DSL .txt
 │   └── config.json             # codegen binary path, host, port
 ├── frontend/
-│   ├── index.html              # Single-page app shell
-│   ├── css/style.css           # Dark-theme stylesheet
+│   ├── index.html              # Single-page app shell (3-column layout)
+│   ├── css/
+│   │   └── style.css           # Dark-theme stylesheet, Drawflow node overrides
 │   ├── js/
-│   │   ├── main.js             # App entry point / bootstrap
+│   │   ├── main.js             # App bootstrap + all toolbar button handlers
 │   │   ├── canvas.js           # Drawflow wrapper + Sugiyama auto-layout
-│   │   ├── sidebar.js          # Block palette (grouped, searchable)
-│   │   ├── forms.js            # Right-panel tabbed forms
-│   │   ├── dsl_preview.js      # CodeMirror 6 live preview pane
-│   │   ├── store.js            # ModelProject state + Kahn topological sort
-│   │   └── api.js              # fetch() wrappers for backend endpoints
+│   │   ├── palette.js          # Block palette (grouped, searchable, drag-enable)
+│   │   ├── forms.js            # Right-panel tabbed forms (meta/data/params/states/block)
+│   │   ├── dsl_preview.js      # CodeMirror 6 live preview + syntax highlight
+│   │   ├── store.js            # ModelProject state, Kahn topo-sort, undo/redo (60 steps)
+│   │   └── api.js              # fetch() wrappers for all backend endpoints
 │   └── blocks.json             # Block catalogue — extend here for new blocks
 ├── examples/
 │   ├── ENTSOE_simp_exc.txt     # Example EXC DSL (PSS + AVR chain)
@@ -281,7 +282,7 @@ For each block, the emitter reverse-maps `inputStates`/`outputState`/`args` back
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  TOOLBAR: New | Load DSL .txt | Load Project | Save DSL |        │
-│           ▶ Run Codegen | Save Project                           │
+│           ▶ Run Codegen | Save Project | Undo | Redo             │
 ├──────────────┬──────────────────────────────┬───────────────────┤
 │              │                              │  [Model] tab       │
 │   SIDEBAR    │                              │  modelType         │
@@ -309,13 +310,13 @@ For each block, the emitter reverse-maps `inputStates`/`outputState`/`args` back
 
 | Module | Responsibility |
 |--------|---------------|
-| `store.js` | Canonical `ModelProject` state; Kahn's topological sort; event bus for cross-module updates |
+| `store.js` | Canonical `ModelProject` state; Kahn's topological sort; undo/redo ring buffer (60 steps); event bus for cross-module updates |
 | `api.js` | `fetch()` wrappers for all backend endpoints; error normalisation |
 | `canvas.js` | Drawflow initialisation; drag-from-sidebar; port connection → signal name assignment; Sugiyama auto-layout for DSL import |
-| `sidebar.js` | Renders block palette grouped by category; search filter; drag-start handler |
+| `palette.js` | Renders block palette grouped by category; live search filter; drag-start handler |
 | `forms.js` | Right-panel tabs: model meta, data table, params table, states table, block props form |
-| `dsl_preview.js` | CodeMirror 6 instance; re-renders on every `store` change; error badge toggle |
-| `main.js` | App bootstrap; toolbar button handlers; file I/O (`FileReader`, `Blob` download) |
+| `dsl_preview.js` | CodeMirror 6 instance; 600 ms debounced re-render on every `store` change; copy-to-clipboard; error badge toggle |
+| `main.js` | App bootstrap; toolbar button handlers (New, Load DSL, Load Project, Save DSL, Save Project, Run Codegen); Ctrl+Z/Y/S keyboard shortcuts; file I/O (`FileReader`, `Blob` download); toast notifications |
 
 ### 8.3 Canvas Interaction Model
 
@@ -355,17 +356,15 @@ Before `/emit` is called, `store.js` runs Kahn's algorithm over the block graph:
 | Phase | Status | Deliverable | Key files |
 |-------|--------|-------------|-----------|
 | **1** | ✅ **Done** | Backend: parser, emitter, API, blocks.json, tests, CI | `server/*.py`, `frontend/blocks.json`, `tests/`, `.github/workflows/ci.yml` |
-| **2** | 🔲 Next | Canvas + sidebar + live DSL preview (Drawflow + CodeMirror 6) | `frontend/js/canvas.js`, `sidebar.js`, `dsl_preview.js`, `store.js`, `api.js` |
-| **3** | 🔲 | Right-panel forms: data / params / states / block props | `frontend/js/forms.js` |
-| **4** | 🔲 | Project save/load (`.cgproj`), DSL `.txt` import with auto-layout | `frontend/js/main.js` |
-| **5** | 🔲 | Run Codegen button, `.f90` download, error display | `frontend/js/api.js` |
-| **6** | 🔲 | Polish: undo/redo, validation overlay, colour themes, block search | — |
+| **2** | ✅ **Done** | Canvas + palette + live DSL preview + forms + toolbar | `frontend/js/*.js`, `frontend/index.html`, `frontend/css/style.css` |
+| **3** | 🔲 Next | Auto-layout on DSL import (Sugiyama), config UI for codegen binary path | `frontend/js/canvas.js` (layout), settings modal |
+| **4** | 🔲 | Project save/load (`.cgproj`), DSL `.txt` import with position restore | `frontend/js/main.js` |
+| **5** | 🔲 | Run Codegen button end-to-end, `.f90` download, subprocess error display | `frontend/js/api.js`, `server/app.py` |
+| **6** | 🔲 | Polish: validation overlay, colour themes per model type, E2E tests | — |
 
 ### Phase 1 — Delivered
 
 **5 commits** merged to `main`. All 25 pytest tests pass on Python 3.10, 3.11, 3.12 (CI green).
-
-Quick start for Phase 1:
 
 ```bash
 git clone https://github.com/SPS-L/stepss-cg-studio
@@ -374,6 +373,17 @@ pip install -r requirements.txt
 pytest tests/ -v          # 25 tests
 python server/app.py      # → http://localhost:8765/docs
 ```
+
+### Phase 2 — Delivered
+
+**1 commit** (`393fc0b`) merged to `main`. Full SPA shell with all 7 JS modules, dark-theme CSS, and live DSL preview operational.
+
+```bash
+git pull
+python server/app.py      # → http://localhost:8765
+```
+
+Open `http://localhost:8765` — drag blocks from the palette, connect ports, fill in `%data`/`%states`/`%parameters` in the right panel, hit **Save DSL** or **▶ Run Codegen**.
 
 ---
 
@@ -408,12 +418,12 @@ RAMSES built-in input variables differ per model type (e.g. `exc` has `[v]`, `[o
 ## 11. Testing Strategy
 
 | Test type | Location | Coverage |
-|-----------|----------|---------|
+|-----------|----------|---------| 
 | Parser unit tests | `tests/test_parser.py` | Model type/name, `%data`, `%parameters`, `%states`, `%observables`, block count/types, `tor`/`inj` variants, no-error validation |
 | Emitter unit tests | `tests/test_parser.py` | All DSL sections present, data names, state names, block headers, continuation marker, `tor` round-trip |
 | `blocks.json` integrity | `tests/test_parser.py` | File loads, required keys present, 14 core blocks exist |
 | Example file tests | `tests/test_parser.py` | Parametrised over `examples/*.txt` — parse without errors, emit all sections |
-| API integration tests | _Phase 2_ | `/parse`, `/emit`, `/run_codegen` via `httpx` + FastAPI `TestClient` |
+| API integration tests | _Phase 3_ | `/parse`, `/emit`, `/run_codegen` via `httpx` + FastAPI `TestClient` |
 | Frontend E2E | _Phase 6_ | Playwright / Cypress drag-drop smoke tests |
 
 Run with: `pytest tests/ -v`
