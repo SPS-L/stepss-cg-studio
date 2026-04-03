@@ -1,0 +1,523 @@
+{
+  "algeq": {
+    "label": "Algebraic Equation",
+    "category": "Algebraic",
+    "description": "Implicit algebraic equation: f(x)=0. The expression must equal zero at every simulation step.",
+    "color": "#6c757d",
+    "inputs": [],
+    "outputs": ["residual"],
+    "args": [
+      {"name": "expr", "label": "Expression (= 0)", "type": "expr", "default": ""}
+    ],
+    "dsl_lines": ["{{expr}}"]
+  },
+
+  "tf1p": {
+    "label": "1st-Order TF",
+    "category": "Transfer Functions",
+    "description": "y = K / (1 + T\u00b7s) \u00b7 u",
+    "color": "#0d6efd",
+    "inputs": ["u"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "gain", "label": "Gain K",          "type": "expr", "default": "1."},
+      {"name": "T",    "label": "Time const T",    "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{T}}"]
+  },
+
+  "tf1plim": {
+    "label": "1st-Order TF + Limits",
+    "category": "Transfer Functions",
+    "description": "y = clamp(K/(1+Ts)\u00b7u,  lo, hi)",
+    "color": "#0d6efd",
+    "inputs": ["u"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "gain", "label": "Gain K",       "type": "expr", "default": "1."},
+      {"name": "T",    "label": "Time const T",  "type": "expr", "default": "1."},
+      {"name": "lo",   "label": "Lower limit",   "type": "expr", "default": "0."},
+      {"name": "hi",   "label": "Upper limit",   "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{T}}", "{{lo}}", "{{hi}}"]
+  },
+
+  "tf1pvlim": {
+    "label": "1st-Order TF + Var. Limits",
+    "category": "Transfer Functions",
+    "description": "y = clamp(K/(1+Ts)\u00b7u,  lo_var, hi_var)  with variable bounds",
+    "color": "#0d6efd",
+    "inputs": ["u"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "gain",   "label": "Gain K",          "type": "expr", "default": "1."},
+      {"name": "T",      "label": "Time const T",     "type": "expr", "default": "1."},
+      {"name": "lo_var", "label": "Lower limit var",  "type": "state", "default": ""},
+      {"name": "hi_var", "label": "Upper limit var",  "type": "state", "default": ""}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{T}}", "{{lo_var}}", "{{hi_var}}"]
+  },
+
+  "tf1p1z": {
+    "label": "Lead-Lag TF",
+    "category": "Transfer Functions",
+    "description": "y = K\u00b7(1 + Tz\u00b7s) / (1 + Tp\u00b7s) \u00b7 u",
+    "color": "#0d6efd",
+    "inputs": ["u"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "gain", "label": "Gain K",          "type": "expr", "default": "1."},
+      {"name": "Tz",   "label": "Zero time const",  "type": "expr", "default": "1."},
+      {"name": "Tp",   "label": "Pole time const",  "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{Tz}}", "{{Tp}}"]
+  },
+
+  "tf2p2z": {
+    "label": "2nd-Order Lead-Lag TF",
+    "category": "Transfer Functions",
+    "description": "y = K\u00b7(1+Tz1\u00b7s)(1+Tz2\u00b7s) / ((1+Tp1\u00b7s)(1+Tp2\u00b7s)) \u00b7 u",
+    "color": "#0d6efd",
+    "inputs": ["u"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "gain", "label": "Gain K",   "type": "expr", "default": "1."},
+      {"name": "Tz1",  "label": "Zero 1 T", "type": "expr", "default": "1."},
+      {"name": "Tz2",  "label": "Zero 2 T", "type": "expr", "default": "1."},
+      {"name": "Tp1",  "label": "Pole 1 T", "type": "expr", "default": "1."},
+      {"name": "Tp2",  "label": "Pole 2 T", "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{Tz1}}", "{{Tz2}}", "{{Tp1}}", "{{Tp2}}"]
+  },
+
+  "tfder1p": {
+    "label": "Washout (Derivative)",
+    "category": "Transfer Functions",
+    "description": "y = K\u00b7s / (1 + T\u00b7s) \u00b7 u  (washout / high-pass)",
+    "color": "#0d6efd",
+    "inputs": ["u"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "gain", "label": "Gain K",       "type": "expr", "default": "1."},
+      {"name": "T",    "label": "Time const T",  "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{T}}"]
+  },
+
+  "tf1p2lim": {
+    "label": "1st-Order TF + 2 Limits",
+    "category": "Transfer Functions",
+    "description": "First-order TF with anti-windup two-sided limits",
+    "color": "#0d6efd",
+    "inputs": ["u"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "gain", "label": "Gain K",      "type": "expr", "default": "1."},
+      {"name": "T",    "label": "Time const T", "type": "expr", "default": "1."},
+      {"name": "lo",   "label": "Lower limit",  "type": "expr", "default": "0."},
+      {"name": "hi",   "label": "Upper limit",  "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{T}}", "{{lo}}", "{{hi}}"]
+  },
+
+  "tf1p2limr": {
+    "label": "1st-Order TF + Limits + Rate",
+    "category": "Transfer Functions",
+    "description": "First-order TF with two-sided limits and rate limiter",
+    "color": "#0d6efd",
+    "inputs": ["u"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "gain", "label": "Gain K",       "type": "expr", "default": "1."},
+      {"name": "T",    "label": "Time const T",  "type": "expr", "default": "1."},
+      {"name": "lo",   "label": "Lower limit",   "type": "expr", "default": "0."},
+      {"name": "hi",   "label": "Upper limit",   "type": "expr", "default": "1."},
+      {"name": "rate", "label": "Rate limit",    "type": "expr", "default": "99."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{T}}", "{{lo}}", "{{hi}}", "{{rate}}"]
+  },
+
+  "lim": {
+    "label": "Limiter",
+    "category": "Limiters",
+    "description": "y = clamp(x, lo, hi)",
+    "color": "#fd7e14",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "lo", "label": "Lower limit", "type": "expr", "default": "0."},
+      {"name": "hi", "label": "Upper limit", "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{lo}}", "{{hi}}"]
+  },
+
+  "limvb": {
+    "label": "Limiter (Variable Bounds)",
+    "category": "Limiters",
+    "description": "y = clamp(x, lo_var, hi_var)  with variable bounds",
+    "color": "#fd7e14",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "lo_var", "label": "Lower bound var", "type": "state", "default": ""},
+      {"name": "hi_var", "label": "Upper bound var", "type": "state", "default": ""}
+    ],
+    "dsl_lines": ["{{input}}", "{{lo_var}}", "{{hi_var}}", "{{output}}"]
+  },
+
+  "inlim": {
+    "label": "Input-side Limiter",
+    "category": "Limiters",
+    "description": "Clamp applied on input side before downstream processing",
+    "color": "#fd7e14",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "lo", "label": "Lower limit", "type": "expr", "default": "0."},
+      {"name": "hi", "label": "Upper limit", "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{lo}}", "{{hi}}"]
+  },
+
+  "invlim": {
+    "label": "Inverse Limiter",
+    "category": "Limiters",
+    "description": "Inverse limiter with variable upper bound and time constant",
+    "color": "#fd7e14",
+    "inputs": ["u"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "lo",     "label": "Lower limit",        "type": "expr",  "default": "0."},
+      {"name": "hi_var", "label": "Upper bound var",    "type": "state", "default": ""},
+      {"name": "T",      "label": "Time const T",       "type": "expr",  "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{lo}}", "{{hi_var}}", "{{output}}", "{{T}}"]
+  },
+
+  "max2v": {
+    "label": "Max (2 vars)",
+    "category": "Min / Max",
+    "description": "y = max(x1, x2)",
+    "color": "#198754",
+    "inputs": ["x1", "x2"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "x2", "label": "Second input", "type": "state", "default": ""}
+    ],
+    "dsl_lines": ["{{input}}", "{{x2}}", "{{output}}"]
+  },
+
+  "max1v1c": {
+    "label": "Max (var, const)",
+    "category": "Min / Max",
+    "description": "y = max(x, c)",
+    "color": "#198754",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "c", "label": "Constant", "type": "expr", "default": "0."}
+    ],
+    "dsl_lines": ["{{input}}", "{{c}}", "{{output}}"]
+  },
+
+  "min2v": {
+    "label": "Min (2 vars)",
+    "category": "Min / Max",
+    "description": "y = min(x1, x2)",
+    "color": "#198754",
+    "inputs": ["x1", "x2"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "x2", "label": "Second input", "type": "state", "default": ""}
+    ],
+    "dsl_lines": ["{{input}}", "{{x2}}", "{{output}}"]
+  },
+
+  "min1v1c": {
+    "label": "Min (var, const)",
+    "category": "Min / Max",
+    "description": "y = min(x, c)",
+    "color": "#198754",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "c", "label": "Constant", "type": "expr", "default": "0."}
+    ],
+    "dsl_lines": ["{{input}}", "{{c}}", "{{output}}"]
+  },
+
+  "int": {
+    "label": "Integrator",
+    "category": "Controllers",
+    "description": "y = (1/s) \u00b7 u  (pure integrator)",
+    "color": "#6f42c1",
+    "inputs": ["u"],
+    "outputs": ["y"],
+    "args": [],
+    "dsl_lines": ["{{input}}", "{{output}}"]
+  },
+
+  "pictl": {
+    "label": "PI Controller",
+    "category": "Controllers",
+    "description": "PI controller without limits",
+    "color": "#6f42c1",
+    "inputs": ["e"],
+    "outputs": ["u"],
+    "args": [
+      {"name": "Kp", "label": "Prop. gain Kp",   "type": "expr", "default": "1."},
+      {"name": "Ti", "label": "Integral time Ti", "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{Kp}}", "{{Ti}}"]
+  },
+
+  "pictllim": {
+    "label": "PI Controller + Limits",
+    "category": "Controllers",
+    "description": "PI controller with anti-windup output limits",
+    "color": "#6f42c1",
+    "inputs": ["e"],
+    "outputs": ["u"],
+    "args": [
+      {"name": "Kp", "label": "Prop. gain Kp",   "type": "expr", "default": "1."},
+      {"name": "Ti", "label": "Integral time Ti", "type": "expr", "default": "1."},
+      {"name": "lo", "label": "Lower limit",       "type": "expr", "default": "0."},
+      {"name": "hi", "label": "Upper limit",       "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{Kp}}", "{{Ti}}", "{{lo}}", "{{hi}}"]
+  },
+
+  "pictl2lim": {
+    "label": "PI Controller + 2 Limits",
+    "category": "Controllers",
+    "description": "PI controller with two-sided anti-windup limits",
+    "color": "#6f42c1",
+    "inputs": ["e"],
+    "outputs": ["u"],
+    "args": [
+      {"name": "Kp", "label": "Prop. gain Kp",   "type": "expr", "default": "1."},
+      {"name": "Ti", "label": "Integral time Ti", "type": "expr", "default": "1."},
+      {"name": "lo", "label": "Lower limit",       "type": "expr", "default": "0."},
+      {"name": "hi", "label": "Upper limit",       "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{Kp}}", "{{Ti}}", "{{lo}}", "{{hi}}"]
+  },
+
+  "pictlieee": {
+    "label": "PI Controller (IEEE)",
+    "category": "Controllers",
+    "description": "IEEE-standard PI controller form",
+    "color": "#6f42c1",
+    "inputs": ["e"],
+    "outputs": ["u"],
+    "args": [
+      {"name": "Ka", "label": "Gain Ka",          "type": "expr", "default": "1."},
+      {"name": "Ta", "label": "Time const Ta",    "type": "expr", "default": "1."},
+      {"name": "lo", "label": "Lower limit",       "type": "expr", "default": "0."},
+      {"name": "hi", "label": "Upper limit",       "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{Ka}}", "{{Ta}}", "{{lo}}", "{{hi}}"]
+  },
+
+  "abs": {
+    "label": "Absolute Value",
+    "category": "Nonlinear",
+    "description": "y = |x|",
+    "color": "#dc3545",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "args": [],
+    "dsl_lines": ["{{input}}", "{{output}}"]
+  },
+
+  "db": {
+    "label": "Deadband",
+    "category": "Nonlinear",
+    "description": "y = 0 for |x| < db;  y = x - sign(x)*db otherwise",
+    "color": "#dc3545",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "db", "label": "Deadband half-width", "type": "expr", "default": "0.05"}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{db}}"]
+  },
+
+  "hyst": {
+    "label": "Hysteresis",
+    "category": "Nonlinear",
+    "description": "Hysteresis block with lower and upper switching thresholds",
+    "color": "#dc3545",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "lo",  "label": "Lower threshold", "type": "expr", "default": "0."},
+      {"name": "hi",  "label": "Upper threshold", "type": "expr", "default": "1."},
+      {"name": "y_lo", "label": "y when low",     "type": "expr", "default": "0."},
+      {"name": "y_hi", "label": "y when high",    "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{lo}}", "{{hi}}", "{{y_lo}}", "{{y_hi}}"]
+  },
+
+  "nint": {
+    "label": "Non-Windup Integrator",
+    "category": "Nonlinear",
+    "description": "Integrator with non-windup anti-saturation limits",
+    "color": "#dc3545",
+    "inputs": ["u"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "lo", "label": "Lower limit", "type": "expr", "default": "0."},
+      {"name": "hi", "label": "Upper limit", "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{lo}}", "{{hi}}"]
+  },
+
+  "swsign": {
+    "label": "Sign Switch",
+    "category": "Nonlinear",
+    "description": "y = sign(x) * |x|  (sign-controlled output)",
+    "color": "#dc3545",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "args": [],
+    "dsl_lines": ["{{input}}", "{{output}}"]
+  },
+
+  "fsa": {
+    "label": "Finite State Automaton",
+    "category": "Nonlinear",
+    "description": "Discrete finite-state automaton block",
+    "color": "#dc3545",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "n_states", "label": "Number of states", "type": "int", "default": "2"}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{n_states}}"]
+  },
+
+  "pwlin3": {
+    "label": "Piecewise-Linear (3 pts)",
+    "category": "Nonlinear",
+    "description": "Piecewise-linear function with 3 breakpoints",
+    "color": "#dc3545",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "x1", "label": "x1", "type": "expr", "default": "0."},
+      {"name": "y1", "label": "y1", "type": "expr", "default": "0."},
+      {"name": "x2", "label": "x2", "type": "expr", "default": "0.5"},
+      {"name": "y2", "label": "y2", "type": "expr", "default": "0.5"},
+      {"name": "x3", "label": "x3", "type": "expr", "default": "1."},
+      {"name": "y3", "label": "y3", "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{x1}}", "{{y1}}", "{{x2}}", "{{y2}}", "{{x3}}", "{{y3}}"]
+  },
+
+  "pwlin4": {
+    "label": "Piecewise-Linear (4 pts)",
+    "category": "Nonlinear",
+    "description": "Piecewise-linear function with 4 breakpoints",
+    "color": "#dc3545",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "x1", "label": "x1", "type": "expr", "default": "0."},
+      {"name": "y1", "label": "y1", "type": "expr", "default": "0."},
+      {"name": "x2", "label": "x2", "type": "expr", "default": "0.333"},
+      {"name": "y2", "label": "y2", "type": "expr", "default": "0.333"},
+      {"name": "x3", "label": "x3", "type": "expr", "default": "0.667"},
+      {"name": "y3", "label": "y3", "type": "expr", "default": "0.667"},
+      {"name": "x4", "label": "x4", "type": "expr", "default": "1."},
+      {"name": "y4", "label": "y4", "type": "expr", "default": "1."}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{x1}}", "{{y1}}", "{{x2}}", "{{y2}}", "{{x3}}", "{{y3}}", "{{x4}}", "{{y4}}"]
+  },
+
+  "switch2": {
+    "label": "Switch (2 inputs)",
+    "category": "Nonlinear",
+    "description": "Select one of 2 input signals based on a condition signal",
+    "color": "#dc3545",
+    "inputs": ["sel", "x1", "x2"],
+    "outputs": ["y"],
+    "args": [
+      {"name": "sel", "label": "Selector signal", "type": "state", "default": ""},
+      {"name": "x2",  "label": "Input 2",          "type": "state", "default": ""}
+    ],
+    "dsl_lines": ["{{input}}", "{{sel}}", "{{x2}}", "{{output}}"]
+  },
+
+  "timer1": {
+    "label": "Timer (1 threshold)",
+    "category": "Timers",
+    "description": "Trip timer: fires after x exceeds threshold for duration T",
+    "color": "#20c997",
+    "inputs": ["x"],
+    "outputs": ["trip"],
+    "args": [
+      {"name": "thr",  "label": "Threshold",  "type": "expr", "default": "1."},
+      {"name": "Ttrip","label": "Trip delay", "type": "expr", "default": "0.1"}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{thr}}", "{{Ttrip}}"]
+  },
+
+  "tsa": {
+    "label": "Time-Signal Accumulator",
+    "category": "Timers",
+    "description": "Accumulates signal over time; resets on condition",
+    "color": "#20c997",
+    "inputs": ["x"],
+    "outputs": ["acc"],
+    "args": [
+      {"name": "reset", "label": "Reset signal", "type": "state", "default": ""}
+    ],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{reset}}"]
+  },
+
+  "f_inj": {
+    "label": "INJ Output (ix, iy)",
+    "category": "Power System",
+    "description": "[INJ only] Compute ix, iy current injection outputs from Pref and Qref",
+    "color": "#842029",
+    "model_types": ["inj"],
+    "inputs": ["Pref", "Qref"],
+    "outputs": ["ix", "iy"],
+    "args": [
+      {"name": "Pref", "label": "Active power ref",   "type": "state", "default": ""},
+      {"name": "Qref", "label": "Reactive power ref",  "type": "state", "default": ""}
+    ],
+    "dsl_lines": ["{{Pref}}", "{{Qref}}"]
+  },
+
+  "f_twop_bus1": {
+    "label": "TWOP Bus 1 Injection",
+    "category": "Power System",
+    "description": "[TWOP only] Current injection at bus 1",
+    "color": "#842029",
+    "model_types": ["twop"],
+    "inputs": ["P1", "Q1"],
+    "outputs": ["ix1", "iy1"],
+    "args": [
+      {"name": "P1", "label": "Active power bus 1",   "type": "state", "default": ""},
+      {"name": "Q1", "label": "Reactive power bus 1", "type": "state", "default": ""}
+    ],
+    "dsl_lines": ["{{P1}}", "{{Q1}}"]
+  },
+
+  "f_twop_bus2": {
+    "label": "TWOP Bus 2 Injection",
+    "category": "Power System",
+    "description": "[TWOP only] Current injection at bus 2",
+    "color": "#842029",
+    "model_types": ["twop"],
+    "inputs": ["P2", "Q2"],
+    "outputs": ["ix2", "iy2"],
+    "args": [
+      {"name": "P2", "label": "Active power bus 2",   "type": "state", "default": ""},
+      {"name": "Q2", "label": "Reactive power bus 2", "type": "state", "default": ""}
+    ],
+    "dsl_lines": ["{{P2}}", "{{Q2}}"]
+  }
+}
