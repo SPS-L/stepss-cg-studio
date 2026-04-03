@@ -1,86 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>STEPSS Codegen Studio</title>
-  <link rel="stylesheet" href="css/style.css" />
-  <!-- Drawflow (MIT) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.js"></script>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>CODEGEN Studio — STEPSS</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.js"></script>
+  <link rel="stylesheet" href="/css/style.css"/>
 </head>
 <body>
-  <!-- ── Toolbar ─────────────────────────────────────────────────────── -->
-  <header id="toolbar">
-    <div class="toolbar-brand">
-      <span class="toolbar-logo">⚡</span>
-      <span class="toolbar-title">STEPSS Codegen Studio</span>
+<header id="topbar">
+  <div id="topbar-left">
+    <span id="app-logo">&#9889; CODEGEN Studio</span>
+    <span id="model-title" class="muted">Untitled model</span>
+  </div>
+  <div id="topbar-center">
+    <label class="tb-label">Type</label>
+    <select id="sel-model-type">
+      <option value="exc">EXC</option>
+      <option value="tor">TOR</option>
+      <option value="inj">INJ</option>
+      <option value="twop">TWOP</option>
+    </select>
+    <label class="tb-label">Name</label>
+    <input id="inp-model-name" type="text" placeholder="model_name" maxlength="32" spellcheck="false"/>
+  </div>
+  <div id="topbar-right">
+    <button class="tb-btn" id="btn-new">New</button>
+    <button class="tb-btn" id="btn-load-dsl">Load DSL</button>
+    <button class="tb-btn" id="btn-load-project">Load Project</button>
+    <button class="tb-btn" id="btn-save">Save Project</button>
+    <button class="tb-btn" id="btn-export-dsl">Export DSL</button>
+    <button class="tb-btn accent" id="btn-codegen">&#9654; Run Codegen</button>
+    <input type="file" id="file-input-dsl"     accept=".txt"  style="display:none"/>
+    <input type="file" id="file-input-project" accept=".json" style="display:none"/>
+  </div>
+</header>
+
+<div id="main-layout">
+  <aside id="palette-panel">
+    <div id="palette-search-wrap">
+      <input id="palette-search" type="text" placeholder="Search blocks&hellip;" spellcheck="false"/>
     </div>
-    <div class="toolbar-actions">
-      <button id="btn-new"         class="btn">New</button>
-      <button id="btn-load-txt"    class="btn">Load DSL</button>
-      <button id="btn-load-proj"   class="btn">Load Project</button>
-      <button id="btn-save-dsl"    class="btn">Save DSL</button>
-      <button id="btn-save-proj"   class="btn">Save Project</button>
-      <button id="btn-run-codegen" class="btn btn-primary">▶ Run Codegen</button>
+    <div id="palette-tree"></div>
+  </aside>
+
+  <div id="center-column">
+    <div id="canvas-toolbar">
+      <button class="icon-btn" id="btn-undo" title="Undo (Ctrl+Z)">&#8617;</button>
+      <button class="icon-btn" id="btn-redo" title="Redo (Ctrl+Y)">&#8618;</button>
+      <button class="icon-btn" id="btn-del"  title="Delete selected (Del)">&#128465;</button>
+      <span class="sep"></span>
+      <button class="icon-btn" id="btn-fit"  title="Fit to view">&#8861;</button>
+      <span class="sep"></span>
+      <span id="canvas-status" class="muted"></span>
     </div>
-    <!-- Hidden file inputs -->
-    <input type="file" id="file-txt"  accept=".txt"    style="display:none" />
-    <input type="file" id="file-proj" accept=".cgproj" style="display:none" />
-  </header>
-
-  <!-- ── Main layout ─────────────────────────────────────────────────── -->
-  <div id="app-layout">
-
-    <!-- Left: block palette -->
-    <aside id="sidebar">
-      <div class="sidebar-header">Blocks</div>
-      <input id="block-search" class="form-input" type="search" placeholder="Search blocks…" />
-      <div id="block-palette"></div>
-    </aside>
-
-    <!-- Centre: canvas -->
-    <main id="canvas-area">
-      <div id="canvas-header">
-        <span id="canvas-model-label">New Model</span>
-        <span id="dsl-error-badge" style="display:none" class="badge-error"></span>
-      </div>
+    <div id="drawflow-wrap">
       <div id="drawflow"></div>
-    </main>
-
-    <!-- Right: tabbed forms + DSL preview -->
-    <aside id="right-panel">
-      <!-- Tab bar -->
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="model">Model</button>
-        <button class="tab-btn"        data-tab="data">Data</button>
-        <button class="tab-btn"        data-tab="params">Params</button>
-        <button class="tab-btn"        data-tab="states">States</button>
-        <button class="tab-btn"        data-tab="props">Block</button>
-        <button class="tab-btn"        data-tab="dsl">DSL</button>
+    </div>
+    <div id="meta-panel">
+      <div id="meta-tabs">
+        <button class="meta-tab active" data-tab="data">%data</button>
+        <button class="meta-tab" data-tab="parameters">%parameters</button>
+        <button class="meta-tab" data-tab="states">%states</button>
+        <button class="meta-tab" data-tab="observables">%observables</button>
       </div>
-
-      <!-- Panes -->
-      <div class="tab-pane active" id="tab-model"></div>
-      <div class="tab-pane"        id="tab-data"></div>
-      <div class="tab-pane"        id="tab-params"></div>
-      <div class="tab-pane"        id="tab-states"></div>
-      <div class="tab-pane"        id="tab-props">
-        <p style="color:var(--text-dim);font-size:12px;padding:8px">
-          Click a block on the canvas to edit its properties.
-        </p>
+      <div id="meta-content">
+        <div id="tab-data"        class="tab-pane active"></div>
+        <div id="tab-parameters"  class="tab-pane"></div>
+        <div id="tab-states"      class="tab-pane"></div>
+        <div id="tab-observables" class="tab-pane"></div>
       </div>
-      <div class="tab-pane"        id="tab-dsl">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px 4px">
-          <span style="font-size:11px;color:var(--text-dim)">Live DSL preview</span>
-        </div>
-        <pre id="dsl-editor" class="dsl-pre"></pre>
+    </div>
+  </div>
+
+  <aside id="right-panel">
+    <div id="inspector-wrap">
+      <div id="inspector-title">Select a block to inspect</div>
+      <div id="inspector-form"></div>
+    </div>
+    <div id="dsl-preview-wrap">
+      <div id="dsl-preview-header">
+        <span>DSL Preview</span>
+        <button class="icon-btn" id="btn-copy-dsl" title="Copy to clipboard">&#8856;</button>
       </div>
-    </aside>
+      <pre id="dsl-preview-content"></pre>
+    </div>
+  </aside>
+</div>
 
-  </div><!-- /app-layout -->
+<div id="modal-overlay" class="hidden">
+  <div id="modal-box">
+    <div id="modal-title"></div>
+    <div id="modal-body"></div>
+    <div id="modal-footer">
+      <button id="modal-ok"     class="tb-btn accent">OK</button>
+      <button id="modal-cancel" class="tb-btn">Cancel</button>
+    </div>
+  </div>
+</div>
 
-  <!-- App entry point (ES module) -->
-  <script type="module" src="js/main.js"></script>
+<div id="toast-container"></div>
+
+<script src="/js/store.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/palette.js"></script>
+<script src="/js/forms.js"></script>
+<script src="/js/canvas.js"></script>
+<script src="/js/dsl_preview.js"></script>
+<script src="/js/main.js"></script>
 </body>
 </html>

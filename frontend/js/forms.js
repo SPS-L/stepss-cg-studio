@@ -1,260 +1,113 @@
 /**
- * forms.js
- * Right-panel tabbed forms:
- *   - Model tab (type, name, observables)
- *   - Data tab (%data table)
- *   - Params tab (%parameters table)
- *   - States tab (%states table)
- *   - Block/Props tab (selected block args)
+ * forms.js — metadata section tables + node inspector
  */
+window.Forms = (() => {
+  const SPECS = {
+    data:        [{k:'name',pl:'KA'},{k:'value',pl:'200.0'},{k:'comment',pl:'optional'}],
+    parameters:  [{k:'name',pl:'VREF'},{k:'expr',pl:'vcomp(...)+...'},{k:'comment',pl:''}],
+    states:      [{k:'name',pl:'Vf'},{k:'init',pl:'0.0'},{k:'comment',pl:''}],
+    observables: [{k:'name',pl:'Vt'},{k:'expr',pl:'[Vf]*{KA}'},{k:'comment',pl:''}]
+  };
+  let _onChange = null;
 
-import Store from './store.js';
-
-let _selectedBlockId = null;
-
-export function initForms() {
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-    });
-  });
-
-  document.addEventListener('store:change', () => {
-    renderModelTab();
-    renderDataTab();
-    renderParamsTab();
-    renderStatesTab();
-    if (_selectedBlockId !== null) renderBlockTab(_selectedBlockId);
-  });
-
-  renderModelTab();
-  renderDataTab();
-  renderParamsTab();
-  renderStatesTab();
-}
-
-export function selectBlock(blockId) {
-  _selectedBlockId = blockId;
-  renderBlockTab(blockId);
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-  const btn = document.querySelector('.tab-btn[data-tab="props"]');
-  if (btn) btn.classList.add('active');
-  const pane = document.getElementById('tab-props');
-  if (pane) pane.classList.add('active');
-}
-
-/* ---- Model tab ---------------------------------------------------------- */
-function renderModelTab() {
-  const p = Store.getProject();
-  const pane = document.getElementById('tab-model');
-  if (!pane) return;
-  pane.innerHTML = `
-    <label class="form-label">Model Type</label>
-    <select id="f-model-type" class="form-select">
-      ${['exc','tor','inj','twop'].map(t =>
-        `<option value="${t}" ${p.modelType===t?'selected':''}>${t.toUpperCase()}</option>`
-      ).join('')}
-    </select>
-    <label class="form-label" style="margin-top:10px">Model Name</label>
-    <input id="f-model-name" class="form-input" value="${_esc(p.modelName)}" />
-    <label class="form-label" style="margin-top:10px">Observables <span style="font-weight:400;font-size:11px">(one per line)</span></label>
-    <textarea id="f-observables" class="form-textarea" rows="4">${p.observables.join('\n')}</textarea>
-    <button id="f-model-save" class="btn btn-primary" style="margin-top:8px;width:100%">Apply</button>
-  `;
-  pane.querySelector('#f-model-save').addEventListener('click', () => {
-    const type = pane.querySelector('#f-model-type').value;
-    const name = pane.querySelector('#f-model-name').value.trim() || 'MyModel';
-    const obs  = pane.querySelector('#f-observables').value
-                     .split('\n').map(s=>s.trim()).filter(Boolean);
-    Store.setModelMeta(type, name);
-    Store.setObservables(obs);
-  });
-}
-
-/* ---- Data tab ----------------------------------------------------------- */
-function renderDataTab() {
-  const p = Store.getProject();
-  const pane = document.getElementById('tab-data');
-  if (!pane) return;
-  pane.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="font-size:12px;color:var(--text-dim)">%data parameters</span>
-      <button id="f-data-add" class="btn" style="padding:3px 10px;font-size:12px">+ Add</button>
-    </div>
-    <table class="form-table">
-      <thead><tr><th>Name</th><th>Comment</th><th></th></tr></thead>
-      <tbody id="f-data-body">
-        ${p.data.map((d,i) => `
-          <tr>
-            <td><input class="form-input" data-idx="${i}" data-field="name"    value="${_esc(d.name)}"    /></td>
-            <td><input class="form-input" data-idx="${i}" data-field="comment" value="${_esc(d.comment)}" /></td>
-            <td><button class="btn-icon del-row" data-idx="${i}">✕</button></td>
-          </tr>`).join('')}
-      </tbody>
-    </table>
-  `;
-  _bindTableEvents(pane, 'data', () => Store.getProject().data, Store.setData);
-}
-
-/* ---- Params tab --------------------------------------------------------- */
-function renderParamsTab() {
-  const p = Store.getProject();
-  const pane = document.getElementById('tab-params');
-  if (!pane) return;
-  pane.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="font-size:12px;color:var(--text-dim)">%parameters</span>
-      <button id="f-params-add" class="btn" style="padding:3px 10px;font-size:12px">+ Add</button>
-    </div>
-    <table class="form-table">
-      <thead><tr><th>Name</th><th>Expression</th><th>&amp;</th><th></th></tr></thead>
-      <tbody id="f-params-body">
-        ${p.parameters.map((d,i) => `
-          <tr>
-            <td><input class="form-input" data-idx="${i}" data-field="name" value="${_esc(d.name)}" /></td>
-            <td><input class="form-input" data-idx="${i}" data-field="expr" value="${_esc(d.expr)}" /></td>
-            <td><input type="checkbox" data-idx="${i}" data-field="continuation" ${d.continuation?'checked':''}></td>
-            <td><button class="btn-icon del-row" data-idx="${i}">✕</button></td>
-          </tr>`).join('')}
-      </tbody>
-    </table>
-  `;
-  _bindTableEvents(pane, 'params', () => Store.getProject().parameters, Store.setParameters);
-}
-
-/* ---- States tab --------------------------------------------------------- */
-function renderStatesTab() {
-  const p = Store.getProject();
-  const pane = document.getElementById('tab-states');
-  if (!pane) return;
-  pane.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="font-size:12px;color:var(--text-dim)">%states (init values)</span>
-      <button id="f-states-add" class="btn" style="padding:3px 10px;font-size:12px">+ Add</button>
-    </div>
-    <table class="form-table">
-      <thead><tr><th>Name</th><th>Init expr</th><th>Comment</th><th></th></tr></thead>
-      <tbody id="f-states-body">
-        ${p.states.map((d,i) => `
-          <tr>
-            <td><input class="form-input" data-idx="${i}" data-field="name"     value="${_esc(d.name)}" /></td>
-            <td><input class="form-input" data-idx="${i}" data-field="initExpr" value="${_esc(d.initExpr)}" /></td>
-            <td><input class="form-input" data-idx="${i}" data-field="comment"  value="${_esc(d.comment)}" /></td>
-            <td><button class="btn-icon del-row" data-idx="${i}">✕</button></td>
-          </tr>`).join('')}
-      </tbody>
-    </table>
-  `;
-  _bindTableEvents(pane, 'states', () => Store.getProject().states, Store.setStates);
-}
-
-/* ---- Block / Props tab -------------------------------------------------- */
-function renderBlockTab(blockId) {
-  const pane = document.getElementById('tab-props');
-  if (!pane) return;
-  if (blockId === null) {
-    pane.innerHTML = '<p style="color:var(--text-dim);font-size:12px;padding:8px">Click a block on the canvas to edit its properties.</p>';
-    return;
-  }
-  const p = Store.getProject();
-  const block = p.blocks.find(b => b.id === blockId);
-  if (!block) { pane.innerHTML = '<p style="color:var(--error);font-size:12px;padding:8px">Block not found.</p>'; return; }
-
-  const cat = window._cgCatalogue || {};
-  const def = cat[block.blockType] || { label: block.blockType, args: [], inputs: [], outputs: [] };
-
-  const inputRows = (block.inputStates || []).map((sig, i) => `
-    <tr>
-      <td style="color:var(--text-dim)">Input ${i+1}</td>
-      <td><input class="form-input" id="bp-input-${i}" value="${_esc(sig)}" /></td>
-    </tr>`).join('');
-
-  const argRows = (def.args || []).map(a => `
-    <tr>
-      <td style="color:var(--text-dim)">${_esc(a.label||a.name)}</td>
-      <td><input class="form-input" id="bp-arg-${a.name}" value="${_esc(block.args[a.name]||a.default||'')}" /></td>
-    </tr>`).join('');
-
-  pane.innerHTML = `
-    <div style="font-size:13px;font-weight:700;margin-bottom:8px">${_esc(def.label||block.blockType)}</div>
-    <div style="font-size:11px;color:var(--text-dim);margin-bottom:12px">${_esc(def.description||'')}</div>
-    <table class="form-table">
-      <tbody>
-        <tr>
-          <td style="color:var(--text-dim)">Output state</td>
-          <td><input class="form-input" id="bp-output" value="${_esc(block.outputState)}" /></td>
-        </tr>
-        ${inputRows}
-        ${argRows}
-        <tr>
-          <td style="color:var(--text-dim)">Comment</td>
-          <td><input class="form-input" id="bp-comment" value="${_esc(block.comment||'')}" /></td>
-        </tr>
-      </tbody>
-    </table>
-    <button id="bp-apply" class="btn btn-primary" style="margin-top:10px;width:100%">Apply</button>
-    <button id="bp-delete" class="btn" style="margin-top:6px;width:100%;background:var(--error);border-color:var(--error)">Delete Block</button>
-  `;
-
-  pane.querySelector('#bp-apply').addEventListener('click', () => {
-    const patch = {
-      outputState: pane.querySelector('#bp-output').value.trim(),
-      comment: pane.querySelector('#bp-comment').value.trim(),
-      args: {},
-      inputStates: (block.inputStates||[]).map((_,i) => {
-        const el = pane.querySelector(`#bp-input-${i}`);
-        return el ? el.value.trim() : '';
-      }),
-    };
-    (def.args||[]).forEach(a => {
-      const el = pane.querySelector(`#bp-arg-${a.name}`);
-      if (el) patch.args[a.name] = el.value.trim();
-    });
-    Store.updateBlock(blockId, patch);
-  });
-
-  pane.querySelector('#bp-delete').addEventListener('click', () => {
-    Store.removeBlock(blockId);
-    _selectedBlockId = null;
-    renderBlockTab(null);
-  });
-}
-
-/* ---- Helpers ------------------------------------------------------------ */
-function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-function _bindTableEvents(pane, prefix, getArr, setArr) {
-  const addBtn = pane.querySelector(`#f-${prefix}-add`);
-  if (addBtn) {
+  function _buildSection(sec) {
+    const spec = SPECS[sec];
+    const rows = Store.get()[sec] || [];
+    const pane = document.getElementById('tab-' + sec);
+    pane.innerHTML = '';
+    const tbl    = document.createElement('table'); tbl.className = 'meta-table';
+    const thead  = document.createElement('thead');
+    const hr     = document.createElement('tr');
+    spec.forEach(c => { const th = document.createElement('th'); th.textContent = c.k.charAt(0).toUpperCase()+c.k.slice(1); hr.appendChild(th); });
+    const thd = document.createElement('th'); thd.style.width='24px'; hr.appendChild(thd);
+    thead.appendChild(hr); tbl.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    rows.forEach((row, i) => tbody.appendChild(_row(sec, i, row, spec)));
+    tbl.appendChild(tbody); pane.appendChild(tbl);
+    const addBtn = document.createElement('button');
+    addBtn.className = 'meta-add-row'; addBtn.textContent = '+ Add row';
     addBtn.addEventListener('click', () => {
-      const arr = [...getArr()];
-      if (prefix === 'data')   arr.push({ name: '', comment: '' });
-      if (prefix === 'params') arr.push({ name: '', expr: '', continuation: false });
-      if (prefix === 'states') arr.push({ name: '', initExpr: '0.', comment: '' });
-      setArr(arr);
+      const empty = {}; spec.forEach(c => empty[c.k] = '');
+      Store.addRow(sec, empty); _buildSection(sec); _onChange && _onChange();
+    });
+    pane.appendChild(addBtn);
+  }
+
+  function _row(sec, i, row, spec) {
+    const tr = document.createElement('tr');
+    spec.forEach(c => {
+      const td = document.createElement('td');
+      const inp = document.createElement('input');
+      inp.className = 'meta-input'; inp.type = 'text';
+      inp.value = row[c.k]||''; inp.placeholder = c.pl;
+      inp.addEventListener('change', e => { Store.updateRow(sec,i,{[c.k]:e.target.value}); _onChange&&_onChange(); });
+      td.appendChild(inp); tr.appendChild(td);
+    });
+    const tdDel = document.createElement('td');
+    const btn   = document.createElement('button');
+    btn.className='row-del'; btn.textContent='\u00D7'; btn.title='Remove';
+    btn.addEventListener('click', () => { Store.removeRow(sec,i); _buildSection(sec); _onChange&&_onChange(); });
+    tdDel.appendChild(btn); tr.appendChild(tdDel); return tr;
+  }
+
+  function _initTabs() {
+    document.querySelectorAll('.meta-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.meta-tab').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+      });
     });
   }
 
-  pane.querySelectorAll('.del-row').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const arr = [...getArr()];
-      arr.splice(parseInt(btn.dataset.idx), 1);
-      setArr(arr);
+  function showInspector(storeId) {
+    const titleEl = document.getElementById('inspector-title');
+    const formEl  = document.getElementById('inspector-form');
+    formEl.innerHTML = '';
+    if (!storeId) { titleEl.textContent = 'Select a block to inspect'; return; }
+    const model = Store.get().models.find(m => m.id === storeId); if (!model) return;
+    const block = Palette.getBlock(model.block_type);
+    titleEl.textContent = (block&&block.label) || model.block_type;
+    // Output signal name fields
+    ((block&&block.outputs)||[]).forEach((outKey, idx) => {
+      const f = _field('Output \"' + outKey + '\" signal', model.outputs[idx]||'');
+      f.querySelector('input').addEventListener('change', e => {
+        const o = [...(model.outputs||[])]; o[idx] = e.target.value;
+        Store.updateModel(storeId,{outputs:o}); Canvas.refreshNode(storeId); _onChange&&_onChange();
+      });
+      formEl.appendChild(f);
     });
-  });
+    // Args
+    ((block&&block.args)||[]).forEach(a => {
+      const val = (model.args&&model.args[a.name]!==undefined) ? model.args[a.name] : (a.default||'');
+      const f   = _field(a.name + (a.description?' — '+a.description:''), val);
+      f.querySelector('input').addEventListener('change', e => {
+        Store.updateModel(storeId,{args:Object.assign({},model.args||{},{[a.name]:e.target.value})});
+        _onChange&&_onChange();
+      });
+      formEl.appendChild(f);
+    });
+    if (model.block_type==='algeq') {
+      const f = _field('Expression', (model.args&&model.args.expr)||'');
+      f.querySelector('input').addEventListener('change', e => {
+        Store.updateModel(storeId,{args:Object.assign({},model.args||{},{expr:e.target.value})});
+        _onChange&&_onChange();
+      });
+      formEl.appendChild(f);
+    }
+  }
 
-  pane.querySelectorAll('input[data-field]').forEach(input => {
-    input.addEventListener('change', () => {
-      const arr = [...getArr()];
-      const idx = parseInt(input.dataset.idx);
-      const field = input.dataset.field;
-      const val = input.type === 'checkbox' ? input.checked : input.value;
-      if (arr[idx]) arr[idx] = { ...arr[idx], [field]: val };
-      setArr(arr);
-    });
-  });
-}
+  function _field(label, value) {
+    const wrap = document.createElement('div'); wrap.className = 'insp-field';
+    const lbl  = document.createElement('label'); lbl.textContent = label;
+    const inp  = document.createElement('input'); inp.type='text'; inp.value=value;
+    wrap.append(lbl, inp); return wrap;
+  }
+
+  return {
+    init(onChange) { _onChange=onChange; _initTabs(); this.refresh(); },
+    refresh() { ['data','parameters','states','observables'].forEach(_buildSection); },
+    showInspector
+  };
+})();

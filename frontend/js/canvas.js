@@ -1,272 +1,111 @@
 /**
- * canvas.js
- * Drawflow canvas wrapper.
- *   - Initialises Drawflow
- *   - Handles drag-from-sidebar drop → creates nodes
- *   - Handles node connection → writes signal names in Store
- *   - Handles node deletion → removes block from Store
- *   - Sugiyama auto-layout for DSL import (no canvas metadata)
+ * canvas.js — Drawflow canvas: node CRUD, drag-drop, wiring, sync to Store
  */
+window.Canvas = (() => {
+  let _df, _blocks={}, _onSelect, _onChange, _selDfId=null;
 
-import Store from './store.js';
-import { getCatalogue } from './sidebar.js';
+  const _dfEl    = id  => document.querySelector('#node-'+id);
+  const _df2s    = id  => { const el=_dfEl(id); return el?el.dataset.storeId:null; };
+  const _s2df    = sid => { const el=document.querySelector('.drawflow-node[data-store-id="'+sid+'"]');
+                            return el?parseInt(el.id.replace('node-','')):null; };
 
-let _df = null;
-let _onSelect = null;
-
-const NODE_W = 200;
-const NODE_H = 80;
-const H_GAP  = 120;
-const V_GAP  = 60;
-
-export function initCanvas(onSelectBlock) {
-  _onSelect = onSelectBlock;
-  const el = document.getElementById('drawflow');
-
-  if (typeof Drawflow === 'undefined') {
-    el.innerHTML = '<div style="padding:40px;color:var(--text-dim);text-align:center;">' +
-      'Drawflow library not loaded. Check CDN in index.html.</div>';
-    return;
+  function _html(key, block, outs) {
+    const ins  = (block.inputs||[]).join(', ');
+    const outL = (block.outputs||[]).map((o,i)=>outs[i]||o).join(', ');
+    return '<div class="node-header"><span class="nh-dot" style="background:'+(block.color||'#64748b')+'"></span>'
+      +'<span class="nh-title">'+(block.label||key)+'</span></div>'
+      +'<div class="node-body">'
+      +(ins  ?'<div class="port-row"><span>'+ins+'</span></div>':'')
+      +(outL ?'<div class="port-row" style="justify-content:flex-end"><span>'+outL+'</span></div>':'')
+      +'</div>';
   }
 
-  _df = new Drawflow(el);
-  _df.reroute = true;
-  _df.reroute_fix_curvature = true;
-  _df.force_first_input = false;
-  _df.start();
+  function _add(key, block, x, y, sid, eArgs, eOuts) {
+    const storeId = sid || Store.nextId();
+    const nIn  = (block.inputs||[]).length;
+    const nOut = (block.outputs||[]).length;
+    const args = Object.assign({}, eArgs||{});
+    (block.args||[]).forEach(a=>{ if(!(a.name in args)) args[a.name]=a.default||''; });
+    const outs = eOuts ? [...eOuts] : [];
+    for(let i=outs.length; i<nOut; i++) outs.push(Store.freshSignal(key.replace(/[^a-zA-Z]/g,'').slice(0,3)||'x'));
+    const dfId = _df.addNode(key, nIn, nOut, x, y, key, {store_id:storeId}, _html(key,block,outs));
+    const el   = _dfEl(dfId); if(el) el.dataset.storeId = storeId;
+    Store.addModel({id:storeId,df_id:dfId,block_type:key,label:block.label||key,
+      color:block.color||'#64748b',args,outputs:outs,
+      inputs:(block.inputs||[]).map(()=>null),pos:{x,y}}, false);
+    _onChange && _onChange();
+    return dfId;
+  }
 
-  _setupDropZone(el);
-  _setupDrawflowEvents();
-}
-
-function _setupDropZone(el) {
-  el.addEventListener('dragover',  e => e.preventDefault());
-  el.addEventListener('drop', e => {
+  function _onDrop(e) {
     e.preventDefault();
-    const blockType = e.dataTransfer.getData('text/plain');
-    if (!blockType) return;
-    const rect = el.getBoundingClientRect();
-    const x = (e.clientX - rect.left - _df.canvas_x) / _df.zoom;
-    const y = (e.clientY - rect.top  - _df.canvas_y) / _df.zoom;
-    _addNode(blockType, x, y);
-  });
-}
+    const key=e.dataTransfer.getData('text/plain'), block=_blocks[key]; if(!block) return;
+    const rect=document.getElementById('drawflow').getBoundingClientRect();
+    const zoom=_df.zoom||1;
+    _add(key, block,
+      (e.clientX-rect.left-(_df.canvas_x||0))/zoom,
+      (e.clientY-rect.top -(_df.canvas_y||0))/zoom);
+  }
 
-function _addNode(blockType, x, y) {
-  const cat   = getCatalogue();
-  const def   = cat[blockType] || { label: blockType, color: '#6b7280', inputs: ['u'], outputs: ['y'] };
-  const block = Store.addBlock({ blockType });
+  function _onConn(info) {
+    const fs=_df2s(info.output_id), ts=_df2s(info.input_id); if(!fs||!ts) return;
+    const m=Store.get().models.find(m=>m.id===fs);
+    const idx=parseInt((info.output_class||'output_1').replace('output_',''))-1;
+    const sig=(m&&m.outputs[idx])||Store.freshSignal('sig');
+    Store.addWire({from_node:fs,from_port:info.output_class,to_node:ts,to_port:info.input_class,signal_name:sig},false);
+    _onChange&&_onChange();
+  }
+  function _onDisc(info) {
+    const fs=_df2s(info.output_id), ts=_df2s(info.input_id); if(!fs||!ts) return;
+    Store.removeWire(fs,info.output_class,ts,info.input_class,false);
+    _onChange&&_onChange();
+  }
 
-  const nInputs  = (def.inputs  || ['u']).length;
-  const nOutputs = (def.outputs || ['y']).length;
-
-  const nodeHtml = _buildNodeHtml(blockType, def, block);
-  const dfId = _df.addNode(
-    blockType,
-    nInputs,
-    nOutputs,
-    x, y,
-    blockType + ' df-node',
-    { blockId: block.id },
-    nodeHtml
-  );
-
-  Store.setNodePos(block.id, x, y);
-  _styleNode(dfId, def.color || '#6b7280');
-
-  setTimeout(() => {
-    const nodeEl = document.querySelector(`.drawflow-node[id="node-${dfId}"]`);
-    if (nodeEl) {
-      nodeEl.addEventListener('click', ev => {
-        ev.stopPropagation();
-        _onSelect && _onSelect(block.id);
+  return {
+    init(blocksObj, onSelect, onChange) {
+      _blocks=blocksObj; _onSelect=onSelect; _onChange=onChange;
+      const el=document.getElementById('drawflow');
+      _df=new Drawflow(el); _df.reroute=false; _df.curvature=0.45; _df.start();
+      el.addEventListener('dragover',e=>e.preventDefault());
+      el.addEventListener('drop',_onDrop);
+      _df.on('nodeSelected',   id=>{ _selDfId=id; onSelect&&onSelect(_df2s(id)); });
+      _df.on('nodeUnselected', ()=>{ _selDfId=null; onSelect&&onSelect(null); });
+      _df.on('nodeRemoved',    id=>{
+        const m=Store.get().models.find(m=>m.df_id===id);
+        if(m) Store.removeModel(m.id,false);
+        onSelect&&onSelect(null); onChange&&onChange();
       });
-    }
-  }, 50);
-
-  return dfId;
-}
-
-function _buildNodeHtml(blockType, def, block) {
-  const label = (def.label || blockType).replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  return `<div class="df-node-inner" data-block-id="${block.id}">
-    <div class="df-node-title" style="border-left:3px solid ${def.color||'#6b7280'}">${label}</div>
-    <div class="df-node-state">${block.outputState}</div>
-  </div>`;
-}
-
-function _styleNode(dfId, color) {
-  setTimeout(() => {
-    const nodeEl = document.querySelector(`.drawflow-node[id="node-${dfId}"]`);
-    if (nodeEl) nodeEl.style.setProperty('--node-color', color);
-  }, 10);
-}
-
-function _setupDrawflowEvents() {
-  _df.on('connectionCreated', data => {
-    const srcBlock = _blockByDfId(data.output_id);
-    const dstBlock = _blockByDfId(data.input_id);
-    if (!srcBlock || !dstBlock) return;
-    const portIdx = parseInt((data.input_class || 'input_1').replace('input_', ''), 10) - 1;
-    Store.connectBlocks(srcBlock.id, dstBlock.id, portIdx);
-    _refreshNodeLabel(data.input_id);
-  });
-
-  _df.on('connectionRemoved', data => {
-    const dstBlock = _blockByDfId(data.input_id);
-    if (!dstBlock) return;
-    const portIdx = parseInt((data.input_class || 'input_1').replace('input_', ''), 10) - 1;
-    dstBlock.inputStates[portIdx] = '';
-    Store.updateBlock(dstBlock.id, { inputStates: [...dstBlock.inputStates] });
-  });
-
-  _df.on('nodeRemoved', dfId => {
-    const block = _blockByDfId(dfId);
-    if (block) Store.removeBlock(block.id);
-  });
-
-  _df.on('nodeMoved', data => {
-    const block = _blockByDfId(data.id);
-    if (!block) return;
-    const info = _df.getNodeFromId(data.id);
-    if (info) Store.setNodePos(block.id, info.pos_x, info.pos_y);
-  });
-}
-
-function _blockByDfId(dfId) {
-  const info = _df.getNodeFromId(dfId);
-  if (!info) return null;
-  const bid = info.data && info.data.blockId;
-  return Store.getProject().blocks.find(b => b.id === bid) || null;
-}
-
-function _refreshNodeLabel(dfId) {
-  const block = _blockByDfId(dfId);
-  if (!block) return;
-  const el = document.querySelector(`.drawflow-node[id="node-${dfId}"] .df-node-state`);
-  if (el) el.textContent = block.outputState;
-}
-
-/* ---- Sugiyama auto-layout (for DSL import, no canvas metadata) ---------- */
-export function autoLayout(blocks) {
-  if (!_df || blocks.length === 0) return {};
-
-  const producerOf = {};
-  blocks.forEach(b => { if (b.outputState) producerOf[b.outputState] = b.id; });
-
-  const adj = {};
-  const inDeg = {};
-  blocks.forEach(b => { adj[b.id] = []; inDeg[b.id] = 0; });
-  blocks.forEach(b => {
-    (b.inputStates || []).forEach(sig => {
-      const pid = producerOf[sig];
-      if (pid !== undefined && pid !== b.id) {
-        adj[pid].push(b.id);
-        inDeg[b.id]++;
-      }
-    });
-  });
-
-  const layer = {};
-  const queue = blocks.filter(b => inDeg[b.id] === 0).map(b => b.id);
-  queue.forEach(id => { layer[id] = 0; });
-  const order = [];
-  while (queue.length) {
-    const id = queue.shift();
-    order.push(id);
-    adj[id].forEach(nid => {
-      layer[nid] = Math.max(layer[nid] || 0, (layer[id] || 0) + 1);
-      inDeg[nid]--;
-      if (inDeg[nid] === 0) queue.push(nid);
-    });
-  }
-  const maxLayer = Math.max(0, ...Object.values(layer));
-  blocks.filter(b => layer[b.id] === undefined).forEach(b => { layer[b.id] = maxLayer + 1; });
-
-  const layerGroups = {};
-  blocks.forEach(b => { (layerGroups[layer[b.id]] = layerGroups[layer[b.id]] || []).push(b.id); });
-
-  const positions = {};
-  for (const [l, ids] of Object.entries(layerGroups)) {
-    ids.forEach((id, i) => {
-      positions[id] = {
-        x: 80 + parseInt(l) * (NODE_W + H_GAP),
-        y: 60 + i * (NODE_H + V_GAP),
-      };
-    });
-  }
-
-  return positions;
-}
-
-/* ---- Rebuild canvas from a project (e.g. after DSL import) -------------- */
-export function rebuildCanvas(project) {
-  if (!_df) return;
-  _df.clearModuleSelected();
-
-  const blocks = project.blocks;
-  const hasLayout = blocks.some(b => project.canvas.nodeMap[b.id]);
-  const positions = hasLayout ? null : autoLayout(blocks);
-
-  const dfIdOf = {};
-
-  blocks.forEach(b => {
-    const cat   = getCatalogue();
-    const def   = cat[b.blockType] || { label: b.blockType, color: '#6b7280', inputs: ['u'], outputs: ['y'] };
-    const pos   = hasLayout
-      ? (project.canvas.nodeMap[b.id] || { x: 80, y: 80 })
-      : (positions[b.id] || { x: 80, y: 80 });
-
-    const nIn  = (def.inputs  || ['u']).length;
-    const nOut = (def.outputs || ['y']).length;
-    const html = _buildNodeHtml(b.blockType, def, b);
-
-    const dfId = _df.addNode(
-      b.blockType, nIn, nOut,
-      pos.x, pos.y,
-      b.blockType + ' df-node',
-      { blockId: b.id }, html
-    );
-    dfIdOf[b.id] = dfId;
-    _styleNode(dfId, def.color || '#6b7280');
-  });
-
-  const producerOf = {};
-  blocks.forEach(b => { if (b.outputState) producerOf[b.outputState] = b.id; });
-
-  blocks.forEach(b => {
-    (b.inputStates || []).forEach((sig, portIdx) => {
-      const srcId = producerOf[sig];
-      if (srcId !== undefined && dfIdOf[srcId] && dfIdOf[b.id]) {
-        try {
-          _df.addConnection(dfIdOf[srcId], dfIdOf[b.id], 'output_1', `input_${portIdx + 1}`);
-        } catch (_) {}
-      }
-    });
-  });
-
-  blocks.forEach(b => {
-    const dfId = dfIdOf[b.id];
-    setTimeout(() => {
-      const nodeEl = document.querySelector(`.drawflow-node[id="node-${dfId}"]`);
-      if (nodeEl) {
-        nodeEl.addEventListener('click', ev => {
-          ev.stopPropagation();
-          _onSelect && _onSelect(b.id);
-        });
-      }
-    }, 50);
-  });
-}
-
-export function clearCanvas() {
-  if (_df) {
-    const data = _df.export();
-    const home = data.drawflow && data.drawflow.Home && data.drawflow.Home.data;
-    if (home) Object.keys(home).forEach(id => { try { _df.removeNodeId('node-' + id); } catch(_){} });
-  }
-}
-
-export function exportDrawflow() {
-  return _df ? _df.export() : {};
-}
+      _df.on('nodeMoved', id=>{
+        const sid=_df2s(id); if(!sid) return;
+        const d=_df.getNodeFromId(id);
+        if(d) Store.updateModel(sid,{pos:{x:d.pos_x,y:d.pos_y}},false);
+        onChange&&onChange();
+      });
+      _df.on('connectionCreated',_onConn);
+      _df.on('connectionRemoved',_onDisc);
+    },
+    loadProject(proj) {
+      _df.import({drawflow:{Home:{data:{}}}});
+      const idMap={};
+      proj.models.forEach(m=>{
+        const block=_blocks[m.block_type]; if(!block){console.warn('Unknown block:',m.block_type);return;}
+        idMap[m.id]=_add(m.block_type,block,(m.pos&&m.pos.x)||80+Math.random()*500,
+          (m.pos&&m.pos.y)||80+Math.random()*300,m.id,m.args,m.outputs);
+      });
+      proj.wires.forEach(w=>{
+        const f=idMap[w.from_node],t=idMap[w.to_node]; if(!f||!t) return;
+        try{_df.addConnection(f,t,w.from_port||'output_1',w.to_port||'input_1');}catch(e){}
+      });
+    },
+    deleteSelected() { if(_selDfId!==null) _df.removeNodeId('node-'+_selDfId); },
+    fitView()        { try{_df.zoom_reset();}catch(e){} },
+    refreshNode(sid) {
+      const dfId=_s2df(sid); if(dfId===null) return;
+      const m=Store.get().models.find(m=>m.id===sid); if(!m) return;
+      const b=_blocks[m.block_type]; if(!b) return;
+      const el=document.querySelector('#node-'+dfId+' .drawflow_content_node');
+      if(el) el.innerHTML=_html(m.block_type,b,m.outputs||[]);
+    },
+    getSelectedStoreId() { return _selDfId!==null?_df2s(_selDfId):null; }
+  };
+})();
