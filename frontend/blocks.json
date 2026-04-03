@@ -997,33 +997,42 @@
     "label": "INJ Output Equations",
     "category": "Power System",
     "description": "Computes ix, iy injection outputs. Only valid in INJ models.",
-    "inputs": [],
+    "inputs": ["ix_expr", "iy_expr"],
     "outputs": [],
     "color": "#dc2626",
     "model_types": ["inj"],
-    "dsl_lines": [],
-    "args": []
+    "dsl_lines": ["{{ix}}", "{{iy}}"],
+    "args": [
+      {"name": "ix", "label": "ix expression", "type": "expr", "default": ""},
+      {"name": "iy", "label": "iy expression", "type": "expr", "default": ""}
+    ]
   },
   "f_twop_bus1": {
     "label": "TWOP Bus 1 Output",
     "category": "Power System",
-    "description": "Computes current injection at bus 1. Only valid in TWOP models.",
-    "inputs": [],
+    "description": "Current injection at bus 1 (ix1, iy1). Only valid in TWOP models.",
+    "inputs": ["ix1_expr", "iy1_expr"],
     "outputs": [],
     "color": "#dc2626",
     "model_types": ["twop"],
-    "dsl_lines": [],
-    "args": []
+    "dsl_lines": ["{{ix}}", "{{iy}}"],
+    "args": [
+      {"name": "ix", "label": "ix1 expression", "type": "expr", "default": ""},
+      {"name": "iy", "label": "iy1 expression", "type": "expr", "default": ""}
+    ]
   },
   "f_twop_bus2": {
     "label": "TWOP Bus 2 Output",
     "category": "Power System",
-    "description": "Computes current injection at bus 2. Only valid in TWOP models.",
-    "inputs": [],
+    "description": "Current injection at bus 2 (ix2, iy2). Only valid in TWOP models.",
+    "inputs": ["ix2_expr", "iy2_expr"],
     "outputs": [],
     "color": "#dc2626",
     "model_types": ["twop"],
-    "dsl_lines": [],
-    "args": []
+    "dsl_lines": ["{{ix}}", "{{iy}}"],
+    "args": [
+      {"name": "ix", "label": "ix2 expression", "type": "expr", "default": ""},
+      {"name": "iy", "label": "iy2 expression", "type": "expr", "default": ""}
+    ]
   }
 }
