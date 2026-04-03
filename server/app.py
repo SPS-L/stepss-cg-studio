@@ -8,13 +8,21 @@ Start:
 
 Endpoints
 ---------
-GET  /              -> serves frontend/index.html
+GET  /              -> serves frontend/index.html  (via StaticFiles html=True)
 GET  /blocks        -> returns blocks.json catalogue
 POST /parse         -> DSL text -> ModelProject JSON
 POST /emit          -> ModelProject JSON -> DSL text
 POST /run_codegen   -> DSL text -> run codegen binary -> return .f90 text
 GET  /config        -> current config.json
 PUT  /config        -> update config.json
+
+Static serving strategy
+-----------------------
+FastAPI processes routes in registration order.  All API routes are registered
+first.  The StaticFiles mount is added LAST at "/" with html=True so that:
+  - /blocks, /parse, /emit, /run_codegen, /config  →  handled by API routes
+  - /css/style.css, /js/main.js, /blocks.json       →  served from frontend/
+  - /  (or any unknown path)                         →  falls back to index.html
 """
 
 from __future__ import annotations
@@ -56,9 +64,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-if FRONTEND_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
-
 
 # -- Pydantic models ---------------------------------------------------------
 class ParseRequest(BaseModel):
@@ -79,16 +84,7 @@ class ConfigUpdateRequest(BaseModel):
     port: int | None = None
 
 
-# -- Routes ------------------------------------------------------------------
-@app.get("/", include_in_schema=False)
-async def serve_index():
-    index = FRONTEND_DIR / "index.html"
-    if index.exists():
-        return FileResponse(str(index))
-    return JSONResponse({"status": "CODEGEN Visual Block Editor API",
-                         "docs": "/docs",
-                         "note": "Frontend not yet built (Phase 2). Use /docs for API."})
-
+# -- API routes (must be registered BEFORE the static catch-all) -------------
 
 @app.get("/blocks")
 async def get_blocks():
@@ -188,6 +184,12 @@ async def update_config(req: ConfigUpdateRequest):
         cfg["port"] = req.port
     _save_config(cfg)
     return JSONResponse(content={"status": "ok", "config": cfg})
+
+
+# -- Static file serving (MUST be last — catches everything else) ------------
+# html=True makes StaticFiles serve index.html for unknown paths (SPA fallback).
+if FRONTEND_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
 
 
 # -- Entry point -------------------------------------------------------------
