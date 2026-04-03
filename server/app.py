@@ -9,6 +9,7 @@ Start:
 Endpoints
 ---------
 GET  /              -> serves frontend/index.html  (via StaticFiles html=True)
+GET  /favicon.ico   -> returns frontend/favicon.svg (suppresses browser 404)
 GET  /blocks        -> returns blocks.json catalogue
 POST /parse         -> DSL text -> ModelProject JSON
 POST /emit          -> ModelProject JSON -> DSL text
@@ -85,6 +86,17 @@ class ConfigUpdateRequest(BaseModel):
 
 
 # -- API routes (must be registered BEFORE the static catch-all) -------------
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    """Return favicon.svg for browsers that always request /favicon.ico."""
+    favicon_path = FRONTEND_DIR / "favicon.svg"
+    if favicon_path.exists():
+        return FileResponse(str(favicon_path), media_type="image/svg+xml")
+    # Fallback: 204 No Content — browser accepts this gracefully, no 404 noise
+    from fastapi.responses import Response
+    return Response(status_code=204)
+
 
 @app.get("/blocks")
 async def get_blocks():
