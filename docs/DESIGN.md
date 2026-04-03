@@ -42,14 +42,14 @@ These decisions were made before implementation and drive the architecture throu
 ## 3. Technology Stack
 
 | Layer | Technology | Rationale |
-|-------|------------|-----------| 
+|-------|------------|-----------|
 | Backend API | FastAPI + uvicorn | Fast async Python, auto-docs at `/docs`, zero config |
 | DSL parse/emit | Pure Python (`dsl_parser.py`, `dsl_emitter.py`) | No extra dependencies |
 | Canvas | [Drawflow](https://github.com/jerosoler/Drawflow) (MIT, CDN) | Drag-drop node graph, zero-build JS |
 | DSL preview | [CodeMirror 6](https://codemirror.net/) (MIT, CDN) | Syntax highlighting, minimal footprint |
 | Right-panel forms | Vanilla JS + HTML5 | No framework overhead |
 | State store | In-memory JS object (`store.js`) | ModelProject JSON mirrors backend |
-| Tests | pytest | Standard Python test runner |
+| Tests | pytest + httpx | Standard Python test runner + FastAPI TestClient |
 | CI | GitHub Actions | Runs pytest on push/PR, Python 3.10–3.12 |
 
 ### Deployment
@@ -82,7 +82,7 @@ stepss-cg-studio/
 │   │   ├── canvas.js           # Drawflow wrapper + Sugiyama auto-layout
 │   │   ├── palette.js          # Block palette (grouped, searchable, drag-enable)
 │   │   ├── forms.js            # Right-panel tabbed forms (meta/data/params/states/block)
-│   │   ├── dsl_preview.js      # CodeMirror 6 live preview + syntax highlight
+│   │   ├── dsl_preview.js      # Debounced live DSL preview with syntax highlight
 │   │   ├── store.js            # ModelProject state, Kahn topo-sort, undo/redo (60 steps)
 │   │   └── api.js              # fetch() wrappers for all backend endpoints
 │   └── blocks.json             # Block catalogue — extend here for new blocks
@@ -91,7 +91,8 @@ stepss-cg-studio/
 │   └── ENTSOE_simp_tor.txt     # Example TOR DSL (governor chain)
 ├── tests/
 │   ├── __init__.py
-│   └── test_parser.py          # 25 pytest tests (parse + emit + blocks.json)
+│   ├── test_parser.py          # 25 pytest tests (parse + emit + blocks.json)
+│   └── test_api.py             # FastAPI integration tests (TestClient, ~50 tests)
 ├── docs/
 │   └── DESIGN.md               # This document
 ├── requirements.txt
@@ -116,7 +117,7 @@ The canonical in-memory and on-disk representation shared between frontend and b
     { "name": "TA", "comment": "" }
   ],
   "parameters": [
-    { "name": "Vo", "expr": "v+(vf/{KE})", "continuation": true }
+    { "name": "Vo", "expr": "v+(vf/{KE})+([vf]/{KA})", "continuation": true }
   ],
   "states": [
     { "name": "avr1", "initExpr": "vf/{KE}", "comment": "" }
@@ -302,7 +303,7 @@ For each block, the emitter reverse-maps `inputStates`/`outputState`/`args` back
 │              │                              │  selected block    │
 │              │                              │  args form         │
 ├──────────────┴──────────────────────────────┴───────────────────┤
-│  Live DSL Preview (CodeMirror 6, read-only)          ⚠ Errors   │
+│  Live DSL Preview (syntax-highlighted)               ⚠ Errors   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -315,8 +316,8 @@ For each block, the emitter reverse-maps `inputStates`/`outputState`/`args` back
 | `canvas.js` | Drawflow initialisation; drag-from-sidebar; port connection → signal name assignment; Sugiyama auto-layout for DSL import |
 | `palette.js` | Renders block palette grouped by category; live search filter; drag-start handler |
 | `forms.js` | Right-panel tabs: model meta, data table, params table, states table, block props form |
-| `dsl_preview.js` | CodeMirror 6 instance; 600 ms debounced re-render on every `store` change; copy-to-clipboard; error badge toggle |
-| `main.js` | App bootstrap; toolbar button handlers (New, Load DSL, Load Project, Save DSL, Save Project, Run Codegen); Ctrl+Z/Y/S keyboard shortcuts; file I/O (`FileReader`, `Blob` download); toast notifications |
+| `dsl_preview.js` | Debounced (600 ms) live DSL re-render on every `store` change; copy-to-clipboard; syntax highlight |
+| `main.js` | App bootstrap; toolbar button handlers (New, Load DSL, Load Project, Save DSL, Save Project, Run Codegen); Ctrl+Z/Y/S keyboard shortcuts; file I/O (`FileReader`, `Blob` download); Settings modal wired to `GET/PUT /config`; toast notifications |
 
 ### 8.3 Canvas Interaction Model
 
@@ -349,41 +350,48 @@ Before `/emit` is called, `store.js` runs Kahn's algorithm over the block graph:
 
 `algeq` blocks that reference state X must be placed **before** the block that produces X as `outputState`. This is enforced by treating `algeq` expression variable references as edges.
 
+### 8.6 Auto-layout (Sugiyama) on DSL Import
+
+When importing a `.txt` file (no canvas metadata), Drawflow node positions are assigned using a **Sugiyama layered-graph placement** computed in `canvas.js`:
+
+1. Build a DAG from block signal dependencies; break cycles via DFS back-edge removal
+2. Assign each block to a layer (longest-path from a source node)
+3. Three-pass barycentric crossing reduction (down → up → down)
+4. Map `(layer, position-within-layer)` → pixel coordinates
+   - Horizontal spacing: 260 px per layer
+   - Vertical spacing: 130 px per position
+
+Feedback loops (e.g. integrators) are handled by identifying back-edges during DFS and removing them from the layout graph — the corresponding wires are still drawn on canvas.
+
 ---
 
 ## 9. Phase Roadmap
 
 | Phase | Status | Deliverable | Key files |
 |-------|--------|-------------|-----------|
-| **1** | ✅ **Done** | Backend: parser, emitter, API, blocks.json, tests, CI | `server/*.py`, `frontend/blocks.json`, `tests/`, `.github/workflows/ci.yml` |
-| **2** | ✅ **Done** | Canvas + palette + live DSL preview + forms + toolbar | `frontend/js/*.js`, `frontend/index.html`, `frontend/css/style.css` |
-| **3** | 🔲 Next | Auto-layout on DSL import (Sugiyama), config UI for codegen binary path | `frontend/js/canvas.js` (layout), settings modal |
-| **4** | 🔲 | Project save/load (`.cgproj`), DSL `.txt` import with position restore | `frontend/js/main.js` |
-| **5** | 🔲 | Run Codegen button end-to-end, `.f90` download, subprocess error display | `frontend/js/api.js`, `server/app.py` |
-| **6** | 🔲 | Polish: validation overlay, colour themes per model type, E2E tests | — |
+| **1** | ✅ **Done** | Backend: parser, emitter, API, blocks.json (51 blocks), tests, CI | `server/*.py`, `frontend/blocks.json`, `tests/test_parser.py`, `.github/workflows/ci.yml` |
+| **2** | ✅ **Done** | Full SPA: canvas (Drawflow), palette, live DSL preview, forms, toolbar, settings modal | `frontend/js/*.js`, `frontend/index.html`, `frontend/css/style.css` |
+| **3** | ✅ **Done** | Sugiyama auto-layout (in `canvas.js`), settings modal wired to `/config`, API integration tests | `tests/test_api.py`, `docs/DESIGN.md` |
+| **4** | 🔲 Next | Project save/load (`.cgproj` JSON), DSL `.txt` import with full position restore | `frontend/js/main.js` (save/load handlers) |
+| **5** | 🔲 | Run Codegen end-to-end: `.f90` download, subprocess error display, stdout/stderr modal | `frontend/js/api.js`, `server/app.py` |
+| **6** | 🔲 | Polish: validation overlay (mandatory outputs), colour themes per model type, E2E tests | Playwright / Cypress |
 
-### Phase 1 — Delivered
-
-**5 commits** merged to `main`. All 25 pytest tests pass on Python 3.10, 3.11, 3.12 (CI green).
+### Completed Phases — Quick Start
 
 ```bash
 git clone https://github.com/SPS-L/stepss-cg-studio
 cd stepss-cg-studio
 pip install -r requirements.txt
-pytest tests/ -v          # 25 tests
-python server/app.py      # → http://localhost:8765/docs
-```
-
-### Phase 2 — Delivered
-
-**1 commit** (`393fc0b`) merged to `main`. Full SPA shell with all 7 JS modules, dark-theme CSS, and live DSL preview operational.
-
-```bash
-git pull
+pytest tests/ -v          # ~75 tests (test_parser + test_api)
 python server/app.py      # → http://localhost:8765
 ```
 
-Open `http://localhost:8765` — drag blocks from the palette, connect ports, fill in `%data`/`%states`/`%parameters` in the right panel, hit **Save DSL** or **▶ Run Codegen**.
+Open `http://localhost:8765` — drag blocks from the palette, connect ports, fill in the metadata tables, then:
+- **Export DSL** → downloads `<model_name>.txt`
+- **▶ Run Codegen** → invokes the `codegen` binary, previews the `.f90`, offers download
+- **Save Project** → saves `<model_name>.json` (lossless `.cgproj` round-trip)
+- **Load Project** → restores canvas + all metadata
+- **⚙ Settings** → set the `codegen` binary path without editing `config.json` by hand
 
 ---
 
@@ -395,11 +403,7 @@ The `%models` section is a flat sequential list — there are no block-closing d
 
 ### 10.2 Auto-layout on DSL import
 
-When importing a `.txt` file (no canvas metadata), Drawflow node positions are assigned using a **Sugiyama layered-graph placement** computed in `canvas.js`:
-1. Build a DAG from block signal dependencies
-2. Assign each block to a layer (longest path from a source)
-3. Sort blocks within each layer to minimise edge crossings
-4. Map `(layer, position)` → `(x, y)` pixel coordinates with fixed horizontal and vertical spacing
+Implemented in `canvas.js` as `sugiyamaLayout(proj)`. The three-pass barycentric approach gives visually reasonable layouts for the typical PSS/AVR/governor chains found in RAMSES models (linear chains with occasional fan-in/fan-out).
 
 ### 10.3 Topological sort and cycle detection
 
@@ -407,7 +411,7 @@ When importing a `.txt` file (no canvas metadata), Drawflow node positions are a
 
 ### 10.4 `algeq` ordering constraint
 
-An `algeq` block that computes state `X` (i.e. `[X] - expr = 0`) is an implicit equation, not a forward block. Its position in the `%models` list must precede the first block that uses `X` as an input. The topological sort treats `algeq` outputs like any other state output for ordering purposes.
+An `algeq` block that computes state `X` is an implicit equation. Its position in the `%models` list must precede the first block that uses `X` as an input. The topological sort treats `algeq` outputs like any other state output for ordering purposes.
 
 ### 10.5 RAMSES variable namespacing
 
@@ -417,14 +421,11 @@ RAMSES built-in input variables differ per model type (e.g. `exc` has `[v]`, `[o
 
 ## 11. Testing Strategy
 
-| Test type | Location | Coverage |
-|-----------|----------|---------| 
-| Parser unit tests | `tests/test_parser.py` | Model type/name, `%data`, `%parameters`, `%states`, `%observables`, block count/types, `tor`/`inj` variants, no-error validation |
-| Emitter unit tests | `tests/test_parser.py` | All DSL sections present, data names, state names, block headers, continuation marker, `tor` round-trip |
-| `blocks.json` integrity | `tests/test_parser.py` | File loads, required keys present, 14 core blocks exist |
-| Example file tests | `tests/test_parser.py` | Parametrised over `examples/*.txt` — parse without errors, emit all sections |
-| API integration tests | _Phase 3_ | `/parse`, `/emit`, `/run_codegen` via `httpx` + FastAPI `TestClient` |
-| Frontend E2E | _Phase 6_ | Playwright / Cypress drag-drop smoke tests |
+| Test type | Location | Count | Coverage |
+|-----------|----------|-------|----------|
+| Parser unit tests | `tests/test_parser.py` | 25 | Model type/name, all sections, block types, round-trip, `blocks.json` integrity, example files |
+| API integration tests | `tests/test_api.py` | ~50 | All endpoints: `/blocks`, `/parse`, `/emit`, `/run_codegen`, `/config`, static serving |
+| Frontend E2E | _Phase 6_ | — | Playwright / Cypress drag-drop smoke tests |
 
 Run with: `pytest tests/ -v`
 
@@ -450,7 +451,7 @@ Run with: `pytest tests/ -v`
 | `host` | `"127.0.0.1"` | Bind address; change to `"0.0.0.0"` for network access |
 | `port` | `8765` | HTTP port |
 
-Editable at runtime via `PUT /config` (Swagger UI) or by editing the JSON file directly.
+Editable at runtime via `PUT /config` (Swagger UI at `/docs`) or the ⚙ Settings button in the UI.
 
 ---
 

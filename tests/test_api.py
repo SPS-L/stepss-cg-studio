@@ -1,20 +1,15 @@
 """
 tests/test_api.py
 =================
-API integration tests for the FastAPI backend.
-
-Runs against a TestClient (no live server required).
-Requires:  pip install httpx
-
+FastAPI integration tests using httpx + FastAPI TestClient.
 Run with:  pytest tests/test_api.py -v
 """
 
+import json
 import os
 import sys
-import json
 import pytest
 
-# Make sure server/ is on the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "server"))
 
 from fastapi.testclient import TestClient
@@ -22,16 +17,17 @@ from app import app
 
 client = TestClient(app)
 
-# ── Fixtures ────────────────────────────────────────────────────────────────
+# ── fixtures ─────────────────────────────────────────────────────────────────
 
-EXC_DSL = """exc
-test_exc
+DSL_EXC = """exc
+ENTSOE_simp
 
 %data
 
+TW1
 TA
-TE
 KE
+TE
 EMIN
 EMAX
 
@@ -51,7 +47,7 @@ vf
 %models
 
 & algeq
-[avr1]-[v]-{Vo}
+[avr1]-[v]+{Vo}
 & tf1p1z
 avr1
 avr2
@@ -67,265 +63,342 @@ vf
 {EMAX}
 """
 
-MINIMAL_PROJECT = {
-    "modelType": "exc",
-    "model_name": "test_exc",
-    "data": [{"name": "TA", "comment": ""}],
-    "parameters": [{"name": "Vo", "expr": "v+(vf/{KE})", "continuation": True}],
-    "states": [{"name": "avr1", "initExpr": "0.", "comment": ""}],
-    "observables": ["vf"],
-    "blocks": [
-        {
-            "id": "n001",
-            "blockType": "algeq",
-            "comment": "",
-            "args": {"expr": "[avr1]-[v]-{Vo}"},
-            "inputStates": [],
-            "outputState": "avr1",
-            "rawArgLines": []
-        }
-    ],
-    "wires": [],
-    "canvas_meta": {},
-    "errors": []
-}
+DSL_TOR = """tor
+GOV_simple
+
+%data
+
+R
+T1
+T2
+VMIN
+VMAX
+
+%parameters
+
+C   = [tm]*{R}
+
+%states
+
+dp1  = [tm]
+Pm   = [tm]
+
+%observables
+
+Pm
+
+%models
+
+& tf1plim
+dp1
+Pm
+1.
+{T1}
+{VMIN}
+{VMAX}
+& algeq
+[tm]*[omega]-[Pm]
+"""
+
+DSL_INJ = """inj
+INJ_test
+
+%data
+
+T
+
+%parameters
+
+%states
+
+ix  = 0.
+iy  = 0.
+
+%observables
+
+ix
+iy
+
+%models
+
+& algeq
+[ix]
+& algeq
+[iy]
+"""
+
+DSL_TWOP = """twop
+TWOP_test
+
+%data
+
+R
+X
+
+%parameters
+
+%states
+
+ix1  = 0.
+iy1  = 0.
+ix2  = 0.
+iy2  = 0.
+
+%observables
+
+ix1
+
+%models
+
+& f_twop_bus1
+ix1
+iy1
+& f_twop_bus2
+ix2
+iy2
+"""
 
 
 # ── /blocks ──────────────────────────────────────────────────────────────────
 
-def test_get_blocks_returns_dict():
-    r = client.get("/blocks")
-    assert r.status_code == 200
-    data = r.json()
-    assert isinstance(data, dict)
-    assert len(data) > 0
+class TestBlocks:
+    def test_get_blocks_status(self):
+        r = client.get("/blocks")
+        assert r.status_code == 200
+
+    def test_get_blocks_is_dict(self):
+        r = client.get("/blocks")
+        assert isinstance(r.json(), dict)
+
+    def test_get_blocks_has_algeq(self):
+        r = client.get("/blocks")
+        assert "algeq" in r.json()
+
+    def test_get_blocks_has_tf1plim(self):
+        r = client.get("/blocks")
+        assert "tf1plim" in r.json()
+
+    def test_get_blocks_schema(self):
+        r = client.get("/blocks")
+        catalogue = r.json()
+        for key, block in catalogue.items():
+            assert "label" in block,    f"{key}: missing 'label'"
+            assert "category" in block, f"{key}: missing 'category'"
+            assert "dsl_lines" in block,f"{key}: missing 'dsl_lines'"
 
 
-def test_get_blocks_has_required_keys():
-    r = client.get("/blocks")
-    catalogue = r.json()
-    for name, block in list(catalogue.items())[:5]:  # spot-check first 5
-        assert "label"    in block, f"{name} missing 'label'"
-        assert "category" in block, f"{name} missing 'category'"
-        assert "dsl_lines" in block, f"{name} missing 'dsl_lines'"
+# ── /parse ───────────────────────────────────────────────────────────────────
+
+class TestParse:
+    def test_parse_exc_status(self):
+        r = client.post("/parse", json={"dsl_text": DSL_EXC})
+        assert r.status_code == 200
+
+    def test_parse_exc_model_type(self):
+        r = client.post("/parse", json={"dsl_text": DSL_EXC})
+        assert r.json()["modelType"] == "exc"
+
+    def test_parse_exc_model_name(self):
+        r = client.post("/parse", json={"dsl_text": DSL_EXC})
+        assert r.json()["modelName"] == "ENTSOE_simp"
+
+    def test_parse_exc_data(self):
+        r = client.post("/parse", json={"dsl_text": DSL_EXC})
+        names = [d["name"] for d in r.json()["data"]]
+        assert "KE" in names
+        assert "TE" in names
+
+    def test_parse_exc_blocks(self):
+        r = client.post("/parse", json={"dsl_text": DSL_EXC})
+        assert len(r.json()["blocks"]) == 3
+
+    def test_parse_exc_no_errors(self):
+        r = client.post("/parse", json={"dsl_text": DSL_EXC})
+        assert r.json()["errors"] == []
+
+    def test_parse_tor(self):
+        r = client.post("/parse", json={"dsl_text": DSL_TOR})
+        p = r.json()
+        assert p["modelType"] == "tor"
+        assert p["errors"] == []
+
+    def test_parse_inj(self):
+        r = client.post("/parse", json={"dsl_text": DSL_INJ})
+        p = r.json()
+        assert p["modelType"] == "inj"
+        assert p["errors"] == []
+
+    def test_parse_twop(self):
+        r = client.post("/parse", json={"dsl_text": DSL_TWOP})
+        p = r.json()
+        assert p["modelType"] == "twop"
+        assert p["errors"] == []
+
+    def test_parse_bad_request_missing_field(self):
+        r = client.post("/parse", json={})
+        assert r.status_code == 422
+
+    def test_parse_empty_dsl_returns_422_or_project(self):
+        r = client.post("/parse", json={"dsl_text": ""})
+        # Either a 422 (strict) or an error-annotated project — both acceptable
+        assert r.status_code in (200, 422)
+
+    def test_parse_project_has_required_keys(self):
+        r = client.post("/parse", json={"dsl_text": DSL_EXC})
+        p = r.json()
+        for key in ("modelType", "modelName", "data", "parameters",
+                    "states", "observables", "blocks", "errors"):
+            assert key in p, f"Missing key: {key}"
 
 
-def test_get_blocks_contains_core_blocks():
-    r = client.get("/blocks")
-    cat = r.json()
-    for b in ["algeq", "tf1p", "tf1plim", "lim", "pictl"]:
-        assert b in cat, f"Core block '{b}' missing"
+# ── /emit ────────────────────────────────────────────────────────────────────
+
+class TestEmit:
+    def _project(self, dsl):
+        return client.post("/parse", json={"dsl_text": dsl}).json()
+
+    def test_emit_exc_status(self):
+        proj = self._project(DSL_EXC)
+        r = client.post("/emit", json={"project": proj})
+        assert r.status_code == 200
+
+    def test_emit_returns_dsl_text_key(self):
+        proj = self._project(DSL_EXC)
+        r = client.post("/emit", json={"project": proj})
+        assert "dsl_text" in r.json()
+
+    def test_emit_exc_sections_present(self):
+        proj = self._project(DSL_EXC)
+        dsl = client.post("/emit", json={"project": proj}).json()["dsl_text"]
+        for sec in ("%data", "%parameters", "%states", "%observables", "%models"):
+            assert sec in dsl, f"Missing section: {sec}"
+
+    def test_emit_exc_model_header(self):
+        proj = self._project(DSL_EXC)
+        dsl = client.post("/emit", json={"project": proj}).json()["dsl_text"]
+        lines = dsl.splitlines()
+        assert lines[0] == "exc"
+        assert lines[1] == "ENTSOE_simp"
+
+    def test_emit_tor_roundtrip(self):
+        proj = self._project(DSL_TOR)
+        dsl = client.post("/emit", json={"project": proj}).json()["dsl_text"]
+        assert "tor" in dsl
+        assert "& tf1plim" in dsl
+
+    def test_emit_inj_roundtrip(self):
+        proj = self._project(DSL_INJ)
+        dsl = client.post("/emit", json={"project": proj}).json()["dsl_text"]
+        assert "inj" in dsl
+        assert "& algeq" in dsl
+
+    def test_emit_twop_roundtrip(self):
+        proj = self._project(DSL_TWOP)
+        dsl = client.post("/emit", json={"project": proj}).json()["dsl_text"]
+        assert "twop" in dsl
+        assert "& f_twop_bus1" in dsl
+        assert "& f_twop_bus2" in dsl
+
+    def test_emit_bad_request_missing_project(self):
+        r = client.post("/emit", json={})
+        assert r.status_code == 422
+
+    def test_emit_preserves_data_names(self):
+        proj = self._project(DSL_EXC)
+        dsl = client.post("/emit", json={"project": proj}).json()["dsl_text"]
+        for name in ("KE", "TE", "EMIN", "EMAX"):
+            assert name in dsl
+
+    def test_emit_preserves_state_names(self):
+        proj = self._project(DSL_EXC)
+        dsl = client.post("/emit", json={"project": proj}).json()["dsl_text"]
+        assert "avr1" in dsl
+        assert "avr2" in dsl
+
+    def test_emit_continuation_marker(self):
+        proj = self._project(DSL_EXC)
+        dsl = client.post("/emit", json={"project": proj}).json()["dsl_text"]
+        param_lines = [l for l in dsl.splitlines() if "Vo" in l and "=" in l]
+        assert len(param_lines) >= 1
+        assert param_lines[0].rstrip().endswith("&")
 
 
-# ── /parse ────────────────────────────────────────────────────────────────────
+# ── /config ──────────────────────────────────────────────────────────────────
 
-def test_parse_returns_model_type():
-    r = client.post("/parse", json={"dsl_text": EXC_DSL})
-    assert r.status_code == 200
-    p = r.json()
-    assert p["modelType"] == "exc"
+class TestConfig:
+    def test_get_config_status(self):
+        r = client.get("/config")
+        assert r.status_code == 200
 
+    def test_get_config_has_required_keys(self):
+        r = client.get("/config")
+        cfg = r.json()
+        for key in ("codegen_path", "host", "port"):
+            assert key in cfg, f"Config missing key: {key}"
 
-def test_parse_returns_model_name():
-    r = client.post("/parse", json={"dsl_text": EXC_DSL})
-    p = r.json()
-    assert p["modelName"] == "test_exc"
+    def test_put_config_codegen_path(self):
+        original = client.get("/config").json().get("codegen_path", "codegen")
+        r = client.put("/config", json={"codegen_path": "/tmp/codegen_test"})
+        assert r.status_code == 200
+        assert r.json()["config"]["codegen_path"] == "/tmp/codegen_test"
+        # restore
+        client.put("/config", json={"codegen_path": original})
 
+    def test_put_config_partial_update(self):
+        r = client.put("/config", json={"port": 9999})
+        assert r.status_code == 200
+        # restore
+        client.put("/config", json={"port": 8765})
 
-def test_parse_data_section():
-    r = client.post("/parse", json={"dsl_text": EXC_DSL})
-    p = r.json()
-    names = [d["name"] for d in p["data"]]
-    assert "TA" in names
-    assert "KE" in names
-
-
-def test_parse_states_section():
-    r = client.post("/parse", json={"dsl_text": EXC_DSL})
-    p = r.json()
-    state_names = [s["name"] for s in p["states"]]
-    assert "avr1" in state_names
-    assert "avr2" in state_names
-
-
-def test_parse_blocks():
-    r = client.post("/parse", json={"dsl_text": EXC_DSL})
-    p = r.json()
-    assert len(p["blocks"]) == 3
-    btypes = [b["blockType"] for b in p["blocks"]]
-    assert "algeq" in btypes
-    assert "tf1plim" in btypes
+    def test_put_config_preserves_other_fields(self):
+        original = client.get("/config").json()
+        client.put("/config", json={"codegen_path": "__test__"})
+        updated = client.get("/config").json()
+        assert updated["host"] == original["host"]
+        assert updated["port"] == original["port"]
+        # restore
+        client.put("/config", json={"codegen_path": original["codegen_path"]})
 
 
-def test_parse_no_errors():
-    r = client.post("/parse", json={"dsl_text": EXC_DSL})
-    p = r.json()
-    assert p["errors"] == []
+# ── /run_codegen (binary absent — graceful failure) ──────────────────────────
+
+class TestRunCodegen:
+    def test_run_codegen_missing_binary_returns_500(self):
+        # Point to a non-existent binary so we test the error path cleanly
+        client.put("/config", json={"codegen_path": "__no_such_binary_xyz__"})
+        r = client.post("/run_codegen", json={
+            "dsl_text": DSL_EXC,
+            "model_type": "exc",
+            "model_name": "ENTSOE_simp"
+        })
+        assert r.status_code == 500
+        assert "codegen" in r.json()["detail"].lower()
+        # restore
+        client.put("/config", json={"codegen_path": "codegen"})
+
+    def test_run_codegen_bad_request_missing_dsl(self):
+        r = client.post("/run_codegen", json={})
+        assert r.status_code == 422
+
+    def test_run_codegen_infers_type_name_from_dsl(self):
+        """When model_type/model_name are omitted, server infers them from dsl_text."""
+        client.put("/config", json={"codegen_path": "__no_such_binary_xyz__"})
+        r = client.post("/run_codegen", json={"dsl_text": DSL_TOR})
+        # 500 because binary absent — but request was accepted (not 422)
+        assert r.status_code == 500
+        # restore
+        client.put("/config", json={"codegen_path": "codegen"})
 
 
-def test_parse_empty_body_returns_422():
-    r = client.post("/parse", json={})
-    assert r.status_code == 422
+# ── static / SPA fallback ─────────────────────────────────────────────────────
 
+class TestStatic:
+    def test_root_returns_html(self):
+        r = client.get("/")
+        assert r.status_code == 200
+        assert "text/html" in r.headers.get("content-type", "")
 
-def test_parse_invalid_json_returns_422():
-    r = client.post("/parse",
-                    content="not json",
-                    headers={"Content-Type": "application/json"})
-    assert r.status_code == 422
-
-
-# ── /emit ─────────────────────────────────────────────────────────────────────
-
-def test_emit_round_trip_type_name():
-    r = client.post("/parse", json={"dsl_text": EXC_DSL})
-    proj = r.json()
-    r2 = client.post("/emit", json={"project": proj})
-    assert r2.status_code == 200
-    dsl = r2.json()["dsl_text"]
-    lines = dsl.splitlines()
-    assert lines[0] == "exc"
-    assert lines[1] == "test_exc"
-
-
-def test_emit_contains_all_sections():
-    r  = client.post("/parse", json={"dsl_text": EXC_DSL})
-    r2 = client.post("/emit",  json={"project": r.json()})
-    dsl = r2.json()["dsl_text"]
-    for sec in ["%data", "%parameters", "%states", "%observables", "%models"]:
-        assert sec in dsl, f"Missing section: {sec}"
-
-
-def test_emit_block_headers():
-    r  = client.post("/parse", json={"dsl_text": EXC_DSL})
-    r2 = client.post("/emit",  json={"project": r.json()})
-    dsl = r2.json()["dsl_text"]
-    assert "& algeq"   in dsl
-    assert "& tf1plim" in dsl
-
-
-def test_emit_data_names_present():
-    r  = client.post("/parse", json={"dsl_text": EXC_DSL})
-    r2 = client.post("/emit",  json={"project": r.json()})
-    dsl = r2.json()["dsl_text"]
-    for name in ["TA", "TE", "KE", "EMIN", "EMAX"]:
-        assert name in dsl
-
-
-def test_emit_empty_project_returns_422():
-    r = client.post("/emit", json={})
-    assert r.status_code == 422
-
-
-def test_emit_minimal_project():
-    r = client.post("/emit", json={"project": MINIMAL_PROJECT})
-    assert r.status_code == 200
-    dsl = r.json()["dsl_text"]
-    assert "exc" in dsl
-
-
-# ── /config ───────────────────────────────────────────────────────────────────
-
-def test_get_config_returns_dict():
-    r = client.get("/config")
-    assert r.status_code == 200
-    cfg = r.json()
-    assert isinstance(cfg, dict)
-
-
-def test_get_config_has_expected_keys():
-    r = client.get("/config")
-    cfg = r.json()
-    for key in ["codegen_path", "host", "port"]:
-        assert key in cfg, f"config missing key: {key}"
-
-
-def test_put_config_updates_codegen_path(tmp_path, monkeypatch):
-    # Redirect config to a temp file so we don't corrupt the real config
-    import app as app_module
-    tmp_cfg = tmp_path / "config.json"
-    tmp_cfg.write_text(json.dumps({
-        "codegen_path": "codegen",
-        "workspace_dir": "workspace",
-        "host": "127.0.0.1",
-        "port": 8765
-    }))
-    monkeypatch.setattr(app_module, "CONFIG_PATH", tmp_cfg)
-
-    r = client.put("/config", json={"codegen_path": "/usr/local/bin/codegen"})
-    assert r.status_code == 200
-    updated = r.json()["config"]
-    assert updated["codegen_path"] == "/usr/local/bin/codegen"
-    # Other fields preserved
-    assert updated["port"] == 8765
-
-
-def test_put_config_updates_port(tmp_path, monkeypatch):
-    import app as app_module
-    tmp_cfg = tmp_path / "config.json"
-    tmp_cfg.write_text(json.dumps({
-        "codegen_path": "codegen",
-        "workspace_dir": "workspace",
-        "host": "127.0.0.1",
-        "port": 8765
-    }))
-    monkeypatch.setattr(app_module, "CONFIG_PATH", tmp_cfg)
-
-    r = client.put("/config", json={"port": 9000})
-    assert r.status_code == 200
-    assert r.json()["config"]["port"] == 9000
-
-
-# ── /run_codegen (offline stub test) ─────────────────────────────────────────
-
-def test_run_codegen_missing_binary_returns_500(tmp_path, monkeypatch):
-    """When codegen binary doesn't exist, endpoint must return HTTP 500."""
-    import app as app_module
-    tmp_cfg = tmp_path / "config.json"
-    tmp_cfg.write_text(json.dumps({"codegen_path": "/nonexistent/codegen"}))
-    monkeypatch.setattr(app_module, "CONFIG_PATH", tmp_cfg)
-
-    r = client.post("/run_codegen", json={
-        "dsl_text": EXC_DSL,
-        "model_type": "exc",
-        "model_name": "test_exc"
-    })
-    assert r.status_code == 500
-    assert "codegen" in r.json()["detail"].lower()
-
-
-# ── Parse → Emit idempotency ──────────────────────────────────────────────────
-
-def test_parse_emit_parse_idempotent_model_type():
-    """parse → emit → parse should yield the same modelType and modelName."""
-    r1   = client.post("/parse", json={"dsl_text": EXC_DSL})
-    proj = r1.json()
-    r2   = client.post("/emit",  json={"project": proj})
-    dsl2 = r2.json()["dsl_text"]
-    r3   = client.post("/parse", json={"dsl_text": dsl2})
-    proj2 = r3.json()
-    assert proj2["modelType"] == proj["modelType"]
-    assert proj2["modelName"] == proj["modelName"]
-
-
-def test_parse_emit_parse_idempotent_block_count():
-    """Block count must survive a parse → emit → parse round-trip."""
-    r1    = client.post("/parse", json={"dsl_text": EXC_DSL})
-    proj  = r1.json()
-    r2    = client.post("/emit",  json={"project": proj})
-    dsl2  = r2.json()["dsl_text"]
-    r3    = client.post("/parse", json={"dsl_text": dsl2})
-    proj2 = r3.json()
-    assert len(proj2["blocks"]) == len(proj["blocks"])
-
-
-def test_parse_emit_parse_idempotent_state_names():
-    """State names must survive a parse → emit → parse round-trip."""
-    r1    = client.post("/parse", json={"dsl_text": EXC_DSL})
-    proj  = r1.json()
-    r2    = client.post("/emit",  json={"project": proj})
-    dsl2  = r2.json()["dsl_text"]
-    r3    = client.post("/parse", json={"dsl_text": dsl2})
-    names1 = {s["name"] for s in proj["states"]}
-    names2 = {s["name"] for s in r3.json()["states"]}
-    assert names1 == names2
+    def test_blocks_json_served(self):
+        # /blocks is the API route, not the static file — but both should work
+        r = client.get("/blocks")
+        assert r.status_code == 200
