@@ -18,6 +18,15 @@ DSL structure (sequential sections):
   %models
     & blockname  [optional comment]
     <positional argument lines as defined in blocks.json>
+
+Template conventions in blocks.json dsl_lines:
+  {{input}}    -> single input; stored as inputStates[0]
+  {{input1}}   -> first of N inputs; appended to inputStates in order
+  {{input2}}   -> second of N inputs; appended to inputStates in order
+  {{inputN}}   -> Nth input (any positive integer suffix)
+  {{output}}   -> output state name; stored as outputState
+  {{inputs}}   -> semicolon-separated list of inputs (legacy multi-input)
+  {{NAME}}     -> any other name -> stored in args dict keyed by NAME
 """
 
 import json
@@ -43,6 +52,9 @@ MANDATORY_OUTPUTS: dict[str, list[str]] = {
     "inj":  ["ix", "iy"],
     "twop": ["ix1", "iy1", "ix2", "iy2"],
 }
+
+# Regex to detect numbered input templates: {{input1}}, {{input2}}, ...
+_INPUT_N_RE = re.compile(r"^\{\{input(\d+)\}\}$")
 
 
 def _load_blocks(blocks_path: str | None = None) -> dict[str, Any]:
@@ -209,11 +221,14 @@ def _parse_blocks(model_lines: list[str], catalogue: dict, errors: list[str]) ->
 
         args: dict[str, str] = {}
         dsl_line_templates = block_def.get("dsl_lines", [])
+        # inputStates collected in slot order for {{input1}}, {{input2}}, ...
+        input_state_slots: dict[int, str] = {}
         input_states: list[str] = []
         output_state: str = ""
 
         for idx, tmpl in enumerate(dsl_line_templates):
             val = arg_lines[idx] if idx < len(arg_lines) else ""
+
             if tmpl == "{{input}}":
                 input_states = [val]
             elif tmpl == "{{output}}":
@@ -221,11 +236,21 @@ def _parse_blocks(model_lines: list[str], catalogue: dict, errors: list[str]) ->
             elif tmpl == "{{inputs}}":
                 input_states = [v.strip() for v in val.split(";")]
             else:
-                m = re.search(r"\{\{(\w+)\}\}", tmpl)
-                if m:
-                    args[m.group(1)] = val
+                # Check for numbered input: {{input1}}, {{input2}}, ...
+                m_in = _INPUT_N_RE.match(tmpl)
+                if m_in:
+                    slot = int(m_in.group(1))
+                    input_state_slots[slot] = val
                 else:
-                    args[f"arg{idx}"] = val
+                    m = re.search(r"\{\{(\w+)\}\}", tmpl)
+                    if m:
+                        args[m.group(1)] = val
+                    else:
+                        args[f"arg{idx}"] = val
+
+        # Merge numbered input slots into inputStates in ascending slot order
+        if input_state_slots:
+            input_states = [input_state_slots[k] for k in sorted(input_state_slots)]
 
         block_id += 1
         blocks.append({

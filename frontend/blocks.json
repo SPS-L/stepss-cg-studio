@@ -1001,10 +1001,10 @@
     "outputs": [],
     "color": "#dc2626",
     "model_types": ["inj"],
-    "dsl_lines": ["{{ix}}", "{{iy}}"],
+    "dsl_lines": ["{{input1}}", "{{input2}}"],
     "args": [
-      {"name": "ix", "label": "ix expression", "type": "expr", "default": ""},
-      {"name": "iy", "label": "iy expression", "type": "expr", "default": ""}
+      {"name": "input1", "label": "ix expression", "type": "expr", "default": ""},
+      {"name": "input2", "label": "iy expression", "type": "expr", "default": ""}
     ]
   },
   "f_twop_bus1": {
@@ -1015,10 +1015,10 @@
     "outputs": [],
     "color": "#dc2626",
     "model_types": ["twop"],
-    "dsl_lines": ["{{ix}}", "{{iy}}"],
+    "dsl_lines": ["{{input1}}", "{{input2}}"],
     "args": [
-      {"name": "ix", "label": "ix1 expression", "type": "expr", "default": ""},
-      {"name": "iy", "label": "iy1 expression", "type": "expr", "default": ""}
+      {"name": "input1", "label": "ix1 expression", "type": "expr", "default": ""},
+      {"name": "input2", "label": "iy1 expression", "type": "expr", "default": ""}
     ]
   },
   "f_twop_bus2": {
@@ -1029,10 +1029,10 @@
     "outputs": [],
     "color": "#dc2626",
     "model_types": ["twop"],
-    "dsl_lines": ["{{ix}}", "{{iy}}"],
+    "dsl_lines": ["{{input1}}", "{{input2}}"],
     "args": [
-      {"name": "ix", "label": "ix2 expression", "type": "expr", "default": ""},
-      {"name": "iy", "label": "iy2 expression", "type": "expr", "default": ""}
+      {"name": "input1", "label": "ix2 expression", "type": "expr", "default": ""},
+      {"name": "input2", "label": "iy2 expression", "type": "expr", "default": ""}
     ]
   }
 }
