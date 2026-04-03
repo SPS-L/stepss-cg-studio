@@ -3,66 +3,84 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>STEPSS CODEGEN Visual Block Editor</title>
-  <link rel="stylesheet" href="/static/css/style.css" />
+  <title>STEPSS Codegen Studio</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- Drawflow (MIT) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.js"></script>
 </head>
 <body>
-  <div id="app">
-    <header id="toolbar">
-      <span class="brand">STEPSS · CG Studio</span>
-      <div class="toolbar-actions">
-        <button id="btn-new"          class="btn">New</button>
-        <button id="btn-load-txt"     class="btn">Load DSL .txt</button>
-        <button id="btn-load-proj"    class="btn">Load Project</button>
-        <button id="btn-save-dsl"     class="btn btn-primary">Save DSL</button>
-        <button id="btn-run-codegen"  class="btn btn-success">▶ Run Codegen</button>
-        <button id="btn-save-proj"    class="btn">Save Project</button>
+  <!-- ── Toolbar ─────────────────────────────────────────────────────── -->
+  <header id="toolbar">
+    <div class="toolbar-brand">
+      <span class="toolbar-logo">⚡</span>
+      <span class="toolbar-title">STEPSS Codegen Studio</span>
+    </div>
+    <div class="toolbar-actions">
+      <button id="btn-new"         class="btn">New</button>
+      <button id="btn-load-txt"    class="btn">Load DSL</button>
+      <button id="btn-load-proj"   class="btn">Load Project</button>
+      <button id="btn-save-dsl"    class="btn">Save DSL</button>
+      <button id="btn-save-proj"   class="btn">Save Project</button>
+      <button id="btn-run-codegen" class="btn btn-primary">▶ Run Codegen</button>
+    </div>
+    <!-- Hidden file inputs -->
+    <input type="file" id="file-txt"  accept=".txt"    style="display:none" />
+    <input type="file" id="file-proj" accept=".cgproj" style="display:none" />
+  </header>
+
+  <!-- ── Main layout ─────────────────────────────────────────────────── -->
+  <div id="app-layout">
+
+    <!-- Left: block palette -->
+    <aside id="sidebar">
+      <div class="sidebar-header">Blocks</div>
+      <input id="block-search" class="form-input" type="search" placeholder="Search blocks…" />
+      <div id="block-palette"></div>
+    </aside>
+
+    <!-- Centre: canvas -->
+    <main id="canvas-area">
+      <div id="canvas-header">
+        <span id="canvas-model-label">New Model</span>
+        <span id="dsl-error-badge" style="display:none" class="badge-error"></span>
       </div>
-    </header>
+      <div id="drawflow"></div>
+    </main>
 
-    <div id="workspace">
-      <aside id="sidebar">
-        <input id="block-search" type="text" placeholder="Search blocks…" />
-        <div id="block-palette"></div>
-      </aside>
+    <!-- Right: tabbed forms + DSL preview -->
+    <aside id="right-panel">
+      <!-- Tab bar -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="model">Model</button>
+        <button class="tab-btn"        data-tab="data">Data</button>
+        <button class="tab-btn"        data-tab="params">Params</button>
+        <button class="tab-btn"        data-tab="states">States</button>
+        <button class="tab-btn"        data-tab="props">Block</button>
+        <button class="tab-btn"        data-tab="dsl">DSL</button>
+      </div>
 
-      <main id="canvas-wrap">
-        <div id="drawflow"></div>
-      </main>
-
-      <aside id="panel-right">
-        <div class="tab-bar">
-          <button class="tab-btn active" data-tab="model">Model</button>
-          <button class="tab-btn" data-tab="data">Data</button>
-          <button class="tab-btn" data-tab="params">Params</button>
-          <button class="tab-btn" data-tab="states">States</button>
-          <button class="tab-btn" data-tab="props">Block</button>
+      <!-- Panes -->
+      <div class="tab-pane active" id="tab-model"></div>
+      <div class="tab-pane"        id="tab-data"></div>
+      <div class="tab-pane"        id="tab-params"></div>
+      <div class="tab-pane"        id="tab-states"></div>
+      <div class="tab-pane"        id="tab-props">
+        <p style="color:var(--text-dim);font-size:12px;padding:8px">
+          Click a block on the canvas to edit its properties.
+        </p>
+      </div>
+      <div class="tab-pane"        id="tab-dsl">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px 4px">
+          <span style="font-size:11px;color:var(--text-dim)">Live DSL preview</span>
         </div>
-        <div id="tab-model"  class="tab-pane active"></div>
-        <div id="tab-data"   class="tab-pane"></div>
-        <div id="tab-params" class="tab-pane"></div>
-        <div id="tab-states" class="tab-pane"></div>
-        <div id="tab-props"  class="tab-pane"></div>
-      </aside>
-    </div>
-
-    <div id="dsl-wrap">
-      <div id="dsl-preview-header">
-        Live DSL Preview
-        <span id="dsl-error-badge" class="badge-error" style="display:none">⚠ Errors</span>
+        <pre id="dsl-editor" class="dsl-pre"></pre>
       </div>
-      <div id="dsl-editor"></div>
-    </div>
+    </aside>
 
-    <input type="file" id="file-txt"  accept=".txt"     style="display:none" />
-    <input type="file" id="file-proj" accept=".cgproj"  style="display:none" />
-  </div>
+  </div><!-- /app-layout -->
 
-  <!--
-    Phase 2 CDN scripts (uncomment when implementing the frontend):
-    <script src="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.js"></script>
-    <link  href="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.css" rel="stylesheet"/>
-  -->
-  <script type="module" src="/static/js/main.js"></script>
+  <!-- App entry point (ES module) -->
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
