@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>STEPSS CODEGEN Visual Block Editor</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="toolbar">
+      <span class="brand">STEPSS · CG Studio</span>
+      <div class="toolbar-actions">
+        <button id="btn-new"          class="btn">New</button>
+        <button id="btn-load-txt"     class="btn">Load DSL .txt</button>
+        <button id="btn-load-proj"    class="btn">Load Project</button>
+        <button id="btn-save-dsl"     class="btn btn-primary">Save DSL</button>
+        <button id="btn-run-codegen"  class="btn btn-success">▶ Run Codegen</button>
+        <button id="btn-save-proj"    class="btn">Save Project</button>
+      </div>
+    </header>
+
+    <div id="workspace">
+      <aside id="sidebar">
+        <input id="block-search" type="text" placeholder="Search blocks…" />
+        <div id="block-palette"></div>
+      </aside>
+
+      <main id="canvas-wrap">
+        <div id="drawflow"></div>
+      </main>
+
+      <aside id="panel-right">
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="model">Model</button>
+          <button class="tab-btn" data-tab="data">Data</button>
+          <button class="tab-btn" data-tab="params">Params</button>
+          <button class="tab-btn" data-tab="states">States</button>
+          <button class="tab-btn" data-tab="props">Block</button>
+        </div>
+        <div id="tab-model"  class="tab-pane active"></div>
+        <div id="tab-data"   class="tab-pane"></div>
+        <div id="tab-params" class="tab-pane"></div>
+        <div id="tab-states" class="tab-pane"></div>
+        <div id="tab-props"  class="tab-pane"></div>
+      </aside>
+    </div>
+
+    <div id="dsl-wrap">
+      <div id="dsl-preview-header">
+        Live DSL Preview
+        <span id="dsl-error-badge" class="badge-error" style="display:none">⚠ Errors</span>
+      </div>
+      <div id="dsl-editor"></div>
+    </div>
+
+    <input type="file" id="file-txt"  accept=".txt"     style="display:none" />
+    <input type="file" id="file-proj" accept=".cgproj"  style="display:none" />
+  </div>
+
+  <!--
+    Phase 2 CDN scripts (uncomment when implementing the frontend):
+    <script src="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.js"></script>
+    <link  href="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.css" rel="stylesheet"/>
+  -->
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

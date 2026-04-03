@@ -2,522 +2,563 @@
   "algeq": {
     "label": "Algebraic Equation",
     "category": "Algebraic",
-    "description": "Implicit algebraic equation: f(x)=0. The expression must equal zero at every simulation step.",
-    "color": "#6c757d",
+    "description": "Implicit algebraic equation: f(x) = 0. Write the residual expression.",
     "inputs": [],
     "outputs": ["residual"],
+    "color": "#6b7280",
+    "dsl_lines": ["{{expr}}"],
     "args": [
-      {"name": "expr", "label": "Expression (= 0)", "type": "expr", "default": ""}
-    ],
-    "dsl_lines": ["{{expr}}"]
+      {"name": "expr", "label": "Residual expression (= 0)", "type": "expr", "default": ""}
+    ]
   },
-
   "tf1p": {
     "label": "1st-Order TF",
     "category": "Transfer Functions",
-    "description": "y = K / (1 + T\u00b7s) \u00b7 u",
-    "color": "#0d6efd",
+    "description": "K / (1 + T\u00b7s)",
     "inputs": ["u"],
     "outputs": ["y"],
+    "color": "#2563eb",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{K}}", "{{T}}"],
     "args": [
-      {"name": "gain", "label": "Gain K",          "type": "expr", "default": "1."},
-      {"name": "T",    "label": "Time const T",    "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{T}}"]
+      {"name": "K", "label": "Gain K", "type": "expr", "default": "1."},
+      {"name": "T", "label": "Time constant T", "type": "expr", "default": "1."}
+    ]
   },
-
   "tf1plim": {
     "label": "1st-Order TF + Limits",
     "category": "Transfer Functions",
-    "description": "y = clamp(K/(1+Ts)\u00b7u,  lo, hi)",
-    "color": "#0d6efd",
+    "description": "K / (1 + T\u00b7s) with constant output limits",
     "inputs": ["u"],
     "outputs": ["y"],
+    "color": "#2563eb",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{K}}", "{{T}}", "{{lo}}", "{{hi}}"],
     "args": [
-      {"name": "gain", "label": "Gain K",       "type": "expr", "default": "1."},
-      {"name": "T",    "label": "Time const T",  "type": "expr", "default": "1."},
-      {"name": "lo",   "label": "Lower limit",   "type": "expr", "default": "0."},
-      {"name": "hi",   "label": "Upper limit",   "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{T}}", "{{lo}}", "{{hi}}"]
+      {"name": "K",  "label": "Gain K",         "type": "expr", "default": "1."},
+      {"name": "T",  "label": "Time constant T", "type": "expr", "default": "1."},
+      {"name": "lo", "label": "Lower limit",     "type": "expr", "default": "-9999."},
+      {"name": "hi", "label": "Upper limit",     "type": "expr", "default": "9999."}
+    ]
   },
-
   "tf1pvlim": {
-    "label": "1st-Order TF + Var. Limits",
+    "label": "1st-Order TF + Var Limits",
     "category": "Transfer Functions",
-    "description": "y = clamp(K/(1+Ts)\u00b7u,  lo_var, hi_var)  with variable bounds",
-    "color": "#0d6efd",
+    "description": "K / (1 + T\u00b7s) with variable output limits (state names)",
     "inputs": ["u"],
     "outputs": ["y"],
+    "color": "#2563eb",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{K}}", "{{T}}", "{{lo_var}}", "{{hi_var}}"],
     "args": [
-      {"name": "gain",   "label": "Gain K",          "type": "expr", "default": "1."},
-      {"name": "T",      "label": "Time const T",     "type": "expr", "default": "1."},
-      {"name": "lo_var", "label": "Lower limit var",  "type": "state", "default": ""},
-      {"name": "hi_var", "label": "Upper limit var",  "type": "state", "default": ""}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{T}}", "{{lo_var}}", "{{hi_var}}"]
+      {"name": "K",      "label": "Gain K",               "type": "expr",  "default": "1."},
+      {"name": "T",      "label": "Time constant T",       "type": "expr",  "default": "1."},
+      {"name": "lo_var", "label": "Lower limit (state)",   "type": "state", "default": ""},
+      {"name": "hi_var", "label": "Upper limit (state)",   "type": "state", "default": ""}
+    ]
   },
-
   "tf1p1z": {
     "label": "Lead-Lag TF",
     "category": "Transfer Functions",
-    "description": "y = K\u00b7(1 + Tz\u00b7s) / (1 + Tp\u00b7s) \u00b7 u",
-    "color": "#0d6efd",
+    "description": "K \u00b7 (1 + Tz\u00b7s) / (1 + Tp\u00b7s)",
     "inputs": ["u"],
     "outputs": ["y"],
+    "color": "#2563eb",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{K}}", "{{Tz}}", "{{Tp}}"],
     "args": [
-      {"name": "gain", "label": "Gain K",          "type": "expr", "default": "1."},
-      {"name": "Tz",   "label": "Zero time const",  "type": "expr", "default": "1."},
-      {"name": "Tp",   "label": "Pole time const",  "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{Tz}}", "{{Tp}}"]
+      {"name": "K",  "label": "Gain K",        "type": "expr", "default": "1."},
+      {"name": "Tz", "label": "Zero time Tz",  "type": "expr", "default": "1."},
+      {"name": "Tp", "label": "Pole time Tp",  "type": "expr", "default": "1."}
+    ]
   },
-
   "tf2p2z": {
-    "label": "2nd-Order Lead-Lag TF",
+    "label": "2nd-Order Lead-Lag",
     "category": "Transfer Functions",
-    "description": "y = K\u00b7(1+Tz1\u00b7s)(1+Tz2\u00b7s) / ((1+Tp1\u00b7s)(1+Tp2\u00b7s)) \u00b7 u",
-    "color": "#0d6efd",
+    "description": "K \u00b7 (1 + Tz1\u00b7s)(1 + Tz2\u00b7s) / ((1 + Tp1\u00b7s)(1 + Tp2\u00b7s))",
     "inputs": ["u"],
     "outputs": ["y"],
+    "color": "#2563eb",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{K}}", "{{Tz1}}", "{{Tz2}}", "{{Tp1}}", "{{Tp2}}"],
     "args": [
-      {"name": "gain", "label": "Gain K",   "type": "expr", "default": "1."},
-      {"name": "Tz1",  "label": "Zero 1 T", "type": "expr", "default": "1."},
-      {"name": "Tz2",  "label": "Zero 2 T", "type": "expr", "default": "1."},
-      {"name": "Tp1",  "label": "Pole 1 T", "type": "expr", "default": "1."},
-      {"name": "Tp2",  "label": "Pole 2 T", "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{Tz1}}", "{{Tz2}}", "{{Tp1}}", "{{Tp2}}"]
+      {"name": "K",   "label": "Gain K",   "type": "expr", "default": "1."},
+      {"name": "Tz1", "label": "Zero Tz1", "type": "expr", "default": "1."},
+      {"name": "Tz2", "label": "Zero Tz2", "type": "expr", "default": "1."},
+      {"name": "Tp1", "label": "Pole Tp1", "type": "expr", "default": "1."},
+      {"name": "Tp2", "label": "Pole Tp2", "type": "expr", "default": "1."}
+    ]
   },
-
   "tfder1p": {
-    "label": "Washout (Derivative)",
+    "label": "Derivative / Washout",
     "category": "Transfer Functions",
-    "description": "y = K\u00b7s / (1 + T\u00b7s) \u00b7 u  (washout / high-pass)",
-    "color": "#0d6efd",
+    "description": "K\u00b7s / (1 + T\u00b7s)  \u2014 derivative filter / washout",
     "inputs": ["u"],
     "outputs": ["y"],
+    "color": "#2563eb",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{K}}", "{{T}}"],
     "args": [
-      {"name": "gain", "label": "Gain K",       "type": "expr", "default": "1."},
-      {"name": "T",    "label": "Time const T",  "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{T}}"]
+      {"name": "K", "label": "Gain K",        "type": "expr", "default": "1."},
+      {"name": "T", "label": "Time constant T","type": "expr", "default": "1."}
+    ]
   },
-
-  "tf1p2lim": {
-    "label": "1st-Order TF + 2 Limits",
-    "category": "Transfer Functions",
-    "description": "First-order TF with anti-windup two-sided limits",
-    "color": "#0d6efd",
-    "inputs": ["u"],
-    "outputs": ["y"],
-    "args": [
-      {"name": "gain", "label": "Gain K",      "type": "expr", "default": "1."},
-      {"name": "T",    "label": "Time const T", "type": "expr", "default": "1."},
-      {"name": "lo",   "label": "Lower limit",  "type": "expr", "default": "0."},
-      {"name": "hi",   "label": "Upper limit",  "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{T}}", "{{lo}}", "{{hi}}"]
-  },
-
-  "tf1p2limr": {
-    "label": "1st-Order TF + Limits + Rate",
-    "category": "Transfer Functions",
-    "description": "First-order TF with two-sided limits and rate limiter",
-    "color": "#0d6efd",
-    "inputs": ["u"],
-    "outputs": ["y"],
-    "args": [
-      {"name": "gain", "label": "Gain K",       "type": "expr", "default": "1."},
-      {"name": "T",    "label": "Time const T",  "type": "expr", "default": "1."},
-      {"name": "lo",   "label": "Lower limit",   "type": "expr", "default": "0."},
-      {"name": "hi",   "label": "Upper limit",   "type": "expr", "default": "1."},
-      {"name": "rate", "label": "Rate limit",    "type": "expr", "default": "99."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{gain}}", "{{T}}", "{{lo}}", "{{hi}}", "{{rate}}"]
-  },
-
   "lim": {
     "label": "Limiter",
     "category": "Limiters",
-    "description": "y = clamp(x, lo, hi)",
-    "color": "#fd7e14",
+    "description": "y = clamp(x, lo, hi) \u2014 constant bounds",
     "inputs": ["x"],
     "outputs": ["y"],
+    "color": "#d97706",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{lo}}", "{{hi}}"],
     "args": [
       {"name": "lo", "label": "Lower limit", "type": "expr", "default": "0."},
       {"name": "hi", "label": "Upper limit", "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{lo}}", "{{hi}}"]
+    ]
   },
-
   "limvb": {
-    "label": "Limiter (Variable Bounds)",
+    "label": "Variable-Bound Limiter",
     "category": "Limiters",
-    "description": "y = clamp(x, lo_var, hi_var)  with variable bounds",
-    "color": "#fd7e14",
+    "description": "y = clamp(x, lo_state, hi_state)",
     "inputs": ["x"],
     "outputs": ["y"],
+    "color": "#d97706",
+    "dsl_lines": ["{{input}}", "{{lo_var}}", "{{hi_var}}", "{{output}}"],
     "args": [
-      {"name": "lo_var", "label": "Lower bound var", "type": "state", "default": ""},
-      {"name": "hi_var", "label": "Upper bound var", "type": "state", "default": ""}
-    ],
-    "dsl_lines": ["{{input}}", "{{lo_var}}", "{{hi_var}}", "{{output}}"]
+      {"name": "lo_var", "label": "Lower limit state", "type": "state", "default": ""},
+      {"name": "hi_var", "label": "Upper limit state", "type": "state", "default": ""}
+    ]
   },
-
   "inlim": {
-    "label": "Input-side Limiter",
+    "label": "Input Limiter",
     "category": "Limiters",
-    "description": "Clamp applied on input side before downstream processing",
-    "color": "#fd7e14",
+    "description": "Limit applied on the input side (anti-windup variant)",
     "inputs": ["x"],
     "outputs": ["y"],
+    "color": "#d97706",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{lo}}", "{{hi}}"],
     "args": [
       {"name": "lo", "label": "Lower limit", "type": "expr", "default": "0."},
       {"name": "hi", "label": "Upper limit", "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{lo}}", "{{hi}}"]
+    ]
   },
-
   "invlim": {
     "label": "Inverse Limiter",
     "category": "Limiters",
-    "description": "Inverse limiter with variable upper bound and time constant",
-    "color": "#fd7e14",
+    "description": "Inverse limiter with time constant",
     "inputs": ["u"],
     "outputs": ["y"],
+    "color": "#d97706",
+    "dsl_lines": ["{{input}}", "{{lo}}", "{{hi_var}}", "{{output}}", "{{T}}"],
     "args": [
-      {"name": "lo",     "label": "Lower limit",        "type": "expr",  "default": "0."},
-      {"name": "hi_var", "label": "Upper bound var",    "type": "state", "default": ""},
-      {"name": "T",      "label": "Time const T",       "type": "expr",  "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{lo}}", "{{hi_var}}", "{{output}}", "{{T}}"]
+      {"name": "lo",     "label": "Lower limit (const)", "type": "expr",  "default": "0."},
+      {"name": "hi_var", "label": "Upper limit (state)", "type": "state", "default": ""},
+      {"name": "T",      "label": "Time constant T",     "type": "expr",  "default": "1."}
+    ]
   },
-
-  "max2v": {
-    "label": "Max (2 vars)",
-    "category": "Min / Max",
-    "description": "y = max(x1, x2)",
-    "color": "#198754",
-    "inputs": ["x1", "x2"],
-    "outputs": ["y"],
-    "args": [
-      {"name": "x2", "label": "Second input", "type": "state", "default": ""}
-    ],
-    "dsl_lines": ["{{input}}", "{{x2}}", "{{output}}"]
-  },
-
-  "max1v1c": {
-    "label": "Max (var, const)",
-    "category": "Min / Max",
-    "description": "y = max(x, c)",
-    "color": "#198754",
-    "inputs": ["x"],
-    "outputs": ["y"],
-    "args": [
-      {"name": "c", "label": "Constant", "type": "expr", "default": "0."}
-    ],
-    "dsl_lines": ["{{input}}", "{{c}}", "{{output}}"]
-  },
-
-  "min2v": {
-    "label": "Min (2 vars)",
-    "category": "Min / Max",
-    "description": "y = min(x1, x2)",
-    "color": "#198754",
-    "inputs": ["x1", "x2"],
-    "outputs": ["y"],
-    "args": [
-      {"name": "x2", "label": "Second input", "type": "state", "default": ""}
-    ],
-    "dsl_lines": ["{{input}}", "{{x2}}", "{{output}}"]
-  },
-
-  "min1v1c": {
-    "label": "Min (var, const)",
-    "category": "Min / Max",
-    "description": "y = min(x, c)",
-    "color": "#198754",
-    "inputs": ["x"],
-    "outputs": ["y"],
-    "args": [
-      {"name": "c", "label": "Constant", "type": "expr", "default": "0."}
-    ],
-    "dsl_lines": ["{{input}}", "{{c}}", "{{output}}"]
-  },
-
   "int": {
     "label": "Integrator",
     "category": "Controllers",
-    "description": "y = (1/s) \u00b7 u  (pure integrator)",
-    "color": "#6f42c1",
+    "description": "Pure integrator: dy/dt = u",
     "inputs": ["u"],
     "outputs": ["y"],
-    "args": [],
-    "dsl_lines": ["{{input}}", "{{output}}"]
+    "color": "#16a34a",
+    "dsl_lines": ["{{input}}", "{{output}}"],
+    "args": []
   },
-
   "pictl": {
     "label": "PI Controller",
     "category": "Controllers",
-    "description": "PI controller without limits",
-    "color": "#6f42c1",
+    "description": "Proportional-Integral controller (no limits)",
     "inputs": ["e"],
-    "outputs": ["u"],
+    "outputs": ["y"],
+    "color": "#16a34a",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{Ki}}", "{{Kp}}"],
     "args": [
-      {"name": "Kp", "label": "Prop. gain Kp",   "type": "expr", "default": "1."},
-      {"name": "Ti", "label": "Integral time Ti", "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{Kp}}", "{{Ti}}"]
+      {"name": "Ki", "label": "Integral gain Ki",      "type": "expr", "default": "1."},
+      {"name": "Kp", "label": "Proportional gain Kp",  "type": "expr", "default": "1."}
+    ]
   },
-
   "pictllim": {
     "label": "PI Controller + Limits",
     "category": "Controllers",
     "description": "PI controller with anti-windup output limits",
-    "color": "#6f42c1",
     "inputs": ["e"],
-    "outputs": ["u"],
+    "outputs": ["y"],
+    "color": "#16a34a",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{Ki}}", "{{Kp}}", "{{lo}}", "{{hi}}"],
     "args": [
-      {"name": "Kp", "label": "Prop. gain Kp",   "type": "expr", "default": "1."},
-      {"name": "Ti", "label": "Integral time Ti", "type": "expr", "default": "1."},
-      {"name": "lo", "label": "Lower limit",       "type": "expr", "default": "0."},
-      {"name": "hi", "label": "Upper limit",       "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{Kp}}", "{{Ti}}", "{{lo}}", "{{hi}}"]
+      {"name": "Ki", "label": "Integral gain Ki",     "type": "expr", "default": "1."},
+      {"name": "Kp", "label": "Proportional gain Kp", "type": "expr", "default": "1."},
+      {"name": "lo", "label": "Lower limit",           "type": "expr", "default": "0."},
+      {"name": "hi", "label": "Upper limit",           "type": "expr", "default": "1."}
+    ]
   },
-
   "pictl2lim": {
     "label": "PI Controller + 2 Limits",
     "category": "Controllers",
     "description": "PI controller with two-sided anti-windup limits",
-    "color": "#6f42c1",
     "inputs": ["e"],
-    "outputs": ["u"],
+    "outputs": ["y"],
+    "color": "#16a34a",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{Ki}}", "{{Kp}}", "{{lo}}", "{{hi}}"],
     "args": [
-      {"name": "Kp", "label": "Prop. gain Kp",   "type": "expr", "default": "1."},
-      {"name": "Ti", "label": "Integral time Ti", "type": "expr", "default": "1."},
-      {"name": "lo", "label": "Lower limit",       "type": "expr", "default": "0."},
-      {"name": "hi", "label": "Upper limit",       "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{Kp}}", "{{Ti}}", "{{lo}}", "{{hi}}"]
+      {"name": "Ki", "label": "Integral gain Ki",     "type": "expr", "default": "1."},
+      {"name": "Kp", "label": "Proportional gain Kp", "type": "expr", "default": "1."},
+      {"name": "lo", "label": "Lower limit",           "type": "expr", "default": "0."},
+      {"name": "hi", "label": "Upper limit",           "type": "expr", "default": "1."}
+    ]
   },
-
   "pictlieee": {
     "label": "PI Controller (IEEE)",
     "category": "Controllers",
-    "description": "IEEE-standard PI controller form",
-    "color": "#6f42c1",
+    "description": "IEEE-standard PI controller formulation",
     "inputs": ["e"],
-    "outputs": ["u"],
+    "outputs": ["y"],
+    "color": "#16a34a",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{Ki}}", "{{Kp}}", "{{lo}}", "{{hi}}"],
     "args": [
-      {"name": "Ka", "label": "Gain Ka",          "type": "expr", "default": "1."},
-      {"name": "Ta", "label": "Time const Ta",    "type": "expr", "default": "1."},
-      {"name": "lo", "label": "Lower limit",       "type": "expr", "default": "0."},
-      {"name": "hi", "label": "Upper limit",       "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{Ka}}", "{{Ta}}", "{{lo}}", "{{hi}}"]
+      {"name": "Ki", "label": "Integral gain Ki",     "type": "expr", "default": "1."},
+      {"name": "Kp", "label": "Proportional gain Kp", "type": "expr", "default": "1."},
+      {"name": "lo", "label": "Lower limit",           "type": "expr", "default": "0."},
+      {"name": "hi", "label": "Upper limit",           "type": "expr", "default": "1."}
+    ]
   },
-
+  "max2v": {
+    "label": "Max (2 signals)",
+    "category": "Min/Max/Gates",
+    "description": "y = max(x1, x2)",
+    "inputs": ["x1", "x2"],
+    "outputs": ["y"],
+    "color": "#7c3aed",
+    "dsl_lines": ["{{input1}}", "{{input2}}", "{{output}}"],
+    "args": [
+      {"name": "input1", "label": "Input 1 (state)", "type": "state", "default": ""},
+      {"name": "input2", "label": "Input 2 (state)", "type": "state", "default": ""}
+    ]
+  },
+  "max1v1c": {
+    "label": "Max (signal vs const)",
+    "category": "Min/Max/Gates",
+    "description": "y = max(x, c) \u2014 HV gate",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "color": "#7c3aed",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{c}}"],
+    "args": [
+      {"name": "c", "label": "Constant c", "type": "expr", "default": "0."}
+    ]
+  },
+  "min2v": {
+    "label": "Min (2 signals)",
+    "category": "Min/Max/Gates",
+    "description": "y = min(x1, x2)",
+    "inputs": ["x1", "x2"],
+    "outputs": ["y"],
+    "color": "#7c3aed",
+    "dsl_lines": ["{{input1}}", "{{input2}}", "{{output}}"],
+    "args": [
+      {"name": "input1", "label": "Input 1 (state)", "type": "state", "default": ""},
+      {"name": "input2", "label": "Input 2 (state)", "type": "state", "default": ""}
+    ]
+  },
+  "min1v1c": {
+    "label": "Min (signal vs const)",
+    "category": "Min/Max/Gates",
+    "description": "y = min(x, c) \u2014 LV gate",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "color": "#7c3aed",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{c}}"],
+    "args": [
+      {"name": "c", "label": "Constant c", "type": "expr", "default": "0."}
+    ]
+  },
   "abs": {
     "label": "Absolute Value",
     "category": "Nonlinear",
     "description": "y = |x|",
-    "color": "#dc3545",
     "inputs": ["x"],
     "outputs": ["y"],
-    "args": [],
-    "dsl_lines": ["{{input}}", "{{output}}"]
+    "color": "#be185d",
+    "dsl_lines": ["{{input}}", "{{output}}"],
+    "args": []
   },
-
   "db": {
     "label": "Deadband",
     "category": "Nonlinear",
-    "description": "y = 0 for |x| < db;  y = x - sign(x)*db otherwise",
-    "color": "#dc3545",
+    "description": "Deadband: y = 0 if |x| < db, else y = x \u2213 db",
     "inputs": ["x"],
     "outputs": ["y"],
+    "color": "#be185d",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{db}}"],
     "args": [
-      {"name": "db", "label": "Deadband half-width", "type": "expr", "default": "0.05"}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{db}}"]
+      {"name": "db", "label": "Deadband width", "type": "expr", "default": "0.05"}
+    ]
   },
-
   "hyst": {
     "label": "Hysteresis",
     "category": "Nonlinear",
-    "description": "Hysteresis block with lower and upper switching thresholds",
-    "color": "#dc3545",
+    "description": "Hysteresis switch block",
     "inputs": ["x"],
     "outputs": ["y"],
+    "color": "#be185d",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{dead1}}", "{{out1}}", "{{dead2}}", "{{out2}}", "{{flag_init}}"],
     "args": [
-      {"name": "lo",  "label": "Lower threshold", "type": "expr", "default": "0."},
-      {"name": "hi",  "label": "Upper threshold", "type": "expr", "default": "1."},
-      {"name": "y_lo", "label": "y when low",     "type": "expr", "default": "0."},
-      {"name": "y_hi", "label": "y when high",    "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{lo}}", "{{hi}}", "{{y_lo}}", "{{y_hi}}"]
+      {"name": "dead1",     "label": "Threshold 1 (rise)",    "type": "expr", "default": "0.5"},
+      {"name": "out1",      "label": "Output value 1",         "type": "expr", "default": "1."},
+      {"name": "dead2",     "label": "Threshold 2 (fall)",    "type": "expr", "default": "-0.5"},
+      {"name": "out2",      "label": "Output value 2",         "type": "expr", "default": "0."},
+      {"name": "flag_init", "label": "Initial flag (-1/0/1)", "type": "expr", "default": "-1"}
+    ]
   },
-
   "nint": {
     "label": "Non-Windup Integrator",
     "category": "Nonlinear",
-    "description": "Integrator with non-windup anti-saturation limits",
-    "color": "#dc3545",
+    "description": "Integrator with non-windup limits",
     "inputs": ["u"],
     "outputs": ["y"],
+    "color": "#be185d",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{lo}}", "{{hi}}"],
     "args": [
       {"name": "lo", "label": "Lower limit", "type": "expr", "default": "0."},
       {"name": "hi", "label": "Upper limit", "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{lo}}", "{{hi}}"]
+    ]
   },
-
   "swsign": {
     "label": "Sign Switch",
     "category": "Nonlinear",
-    "description": "y = sign(x) * |x|  (sign-controlled output)",
-    "color": "#dc3545",
-    "inputs": ["x"],
+    "description": "Multiplies input by sign(selector)",
+    "inputs": ["x", "sel"],
     "outputs": ["y"],
-    "args": [],
-    "dsl_lines": ["{{input}}", "{{output}}"]
-  },
-
-  "fsa": {
-    "label": "Finite State Automaton",
-    "category": "Nonlinear",
-    "description": "Discrete finite-state automaton block",
-    "color": "#dc3545",
-    "inputs": ["x"],
-    "outputs": ["y"],
+    "color": "#be185d",
+    "dsl_lines": ["{{input}}", "{{selector}}", "{{output}}"],
     "args": [
-      {"name": "n_states", "label": "Number of states", "type": "int", "default": "2"}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{n_states}}"]
+      {"name": "selector", "label": "Selector signal", "type": "state", "default": ""}
+    ]
   },
-
-  "pwlin3": {
-    "label": "Piecewise-Linear (3 pts)",
-    "category": "Nonlinear",
-    "description": "Piecewise-linear function with 3 breakpoints",
-    "color": "#dc3545",
-    "inputs": ["x"],
-    "outputs": ["y"],
-    "args": [
-      {"name": "x1", "label": "x1", "type": "expr", "default": "0."},
-      {"name": "y1", "label": "y1", "type": "expr", "default": "0."},
-      {"name": "x2", "label": "x2", "type": "expr", "default": "0.5"},
-      {"name": "y2", "label": "y2", "type": "expr", "default": "0.5"},
-      {"name": "x3", "label": "x3", "type": "expr", "default": "1."},
-      {"name": "y3", "label": "y3", "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{x1}}", "{{y1}}", "{{x2}}", "{{y2}}", "{{x3}}", "{{y3}}"]
-  },
-
-  "pwlin4": {
-    "label": "Piecewise-Linear (4 pts)",
-    "category": "Nonlinear",
-    "description": "Piecewise-linear function with 4 breakpoints",
-    "color": "#dc3545",
-    "inputs": ["x"],
-    "outputs": ["y"],
-    "args": [
-      {"name": "x1", "label": "x1", "type": "expr", "default": "0."},
-      {"name": "y1", "label": "y1", "type": "expr", "default": "0."},
-      {"name": "x2", "label": "x2", "type": "expr", "default": "0.333"},
-      {"name": "y2", "label": "y2", "type": "expr", "default": "0.333"},
-      {"name": "x3", "label": "x3", "type": "expr", "default": "0.667"},
-      {"name": "y3", "label": "y3", "type": "expr", "default": "0.667"},
-      {"name": "x4", "label": "x4", "type": "expr", "default": "1."},
-      {"name": "y4", "label": "y4", "type": "expr", "default": "1."}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{x1}}", "{{y1}}", "{{x2}}", "{{y2}}", "{{x3}}", "{{y3}}", "{{x4}}", "{{y4}}"]
-  },
-
   "switch2": {
     "label": "Switch (2 inputs)",
     "category": "Nonlinear",
-    "description": "Select one of 2 input signals based on a condition signal",
-    "color": "#dc3545",
-    "inputs": ["sel", "x1", "x2"],
+    "description": "2-input selector: output = in[sel]",
+    "inputs": ["sel", "in1", "in2"],
     "outputs": ["y"],
+    "color": "#be185d",
+    "dsl_lines": ["{{sel}}", "{{in1}}", "{{in2}}", "{{output}}"],
     "args": [
       {"name": "sel", "label": "Selector signal", "type": "state", "default": ""},
-      {"name": "x2",  "label": "Input 2",          "type": "state", "default": ""}
-    ],
-    "dsl_lines": ["{{input}}", "{{sel}}", "{{x2}}", "{{output}}"]
+      {"name": "in1", "label": "Input 1",          "type": "state", "default": ""},
+      {"name": "in2", "label": "Input 2",          "type": "state", "default": ""}
+    ]
   },
-
+  "switch3": {
+    "label": "Switch (3 inputs)",
+    "category": "Nonlinear",
+    "description": "3-input selector",
+    "inputs": ["sel", "in1", "in2", "in3"],
+    "outputs": ["y"],
+    "color": "#be185d",
+    "dsl_lines": ["{{sel}}", "{{in1}}", "{{in2}}", "{{in3}}", "{{output}}"],
+    "args": [
+      {"name": "sel", "label": "Selector", "type": "state", "default": ""},
+      {"name": "in1", "label": "Input 1",  "type": "state", "default": ""},
+      {"name": "in2", "label": "Input 2",  "type": "state", "default": ""},
+      {"name": "in3", "label": "Input 3",  "type": "state", "default": ""}
+    ]
+  },
+  "switch4": {
+    "label": "Switch (4 inputs)",
+    "category": "Nonlinear",
+    "description": "4-input selector",
+    "inputs": ["sel", "in1", "in2", "in3", "in4"],
+    "outputs": ["y"],
+    "color": "#be185d",
+    "dsl_lines": ["{{sel}}", "{{in1}}", "{{in2}}", "{{in3}}", "{{in4}}", "{{output}}"],
+    "args": [
+      {"name": "sel", "label": "Selector", "type": "state", "default": ""},
+      {"name": "in1", "label": "Input 1",  "type": "state", "default": ""},
+      {"name": "in2", "label": "Input 2",  "type": "state", "default": ""},
+      {"name": "in3", "label": "Input 3",  "type": "state", "default": ""},
+      {"name": "in4", "label": "Input 4",  "type": "state", "default": ""}
+    ]
+  },
+  "switch5": {
+    "label": "Switch (5 inputs)",
+    "category": "Nonlinear",
+    "description": "5-input selector",
+    "inputs": ["sel", "in1", "in2", "in3", "in4", "in5"],
+    "outputs": ["y"],
+    "color": "#be185d",
+    "dsl_lines": ["{{sel}}", "{{in1}}", "{{in2}}", "{{in3}}", "{{in4}}", "{{in5}}", "{{output}}"],
+    "args": [
+      {"name": "sel", "label": "Selector", "type": "state", "default": ""},
+      {"name": "in1", "label": "Input 1",  "type": "state", "default": ""},
+      {"name": "in2", "label": "Input 2",  "type": "state", "default": ""},
+      {"name": "in3", "label": "Input 3",  "type": "state", "default": ""},
+      {"name": "in4", "label": "Input 4",  "type": "state", "default": ""},
+      {"name": "in5", "label": "Input 5",  "type": "state", "default": ""}
+    ]
+  },
+  "pwlin3": {
+    "label": "Piecewise Linear (3 seg.)",
+    "category": "Nonlinear",
+    "description": "Piecewise-linear function \u2014 3 segments",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "color": "#be185d",
+    "dsl_lines": ["{{input}}", "{{output}}"],
+    "args": []
+  },
+  "pwlin4": {
+    "label": "Piecewise Linear (4 seg.)",
+    "category": "Nonlinear",
+    "description": "Piecewise-linear function \u2014 4 segments",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "color": "#be185d",
+    "dsl_lines": ["{{input}}", "{{output}}"],
+    "args": []
+  },
+  "pwlin5": {
+    "label": "Piecewise Linear (5 seg.)",
+    "category": "Nonlinear",
+    "description": "Piecewise-linear function \u2014 5 segments",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "color": "#be185d",
+    "dsl_lines": ["{{input}}", "{{output}}"],
+    "args": []
+  },
+  "pwlin6": {
+    "label": "Piecewise Linear (6 seg.)",
+    "category": "Nonlinear",
+    "description": "Piecewise-linear function \u2014 6 segments",
+    "inputs": ["x"],
+    "outputs": ["y"],
+    "color": "#be185d",
+    "dsl_lines": ["{{input}}", "{{output}}"],
+    "args": []
+  },
   "timer1": {
     "label": "Timer (1 threshold)",
     "category": "Timers",
-    "description": "Trip timer: fires after x exceeds threshold for duration T",
-    "color": "#20c997",
+    "description": "Timer with 1 piecewise-linear threshold/time pair",
     "inputs": ["x"],
-    "outputs": ["trip"],
+    "outputs": ["timer"],
+    "color": "#0891b2",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{thr1}}", "{{t1}}"],
     "args": [
-      {"name": "thr",  "label": "Threshold",  "type": "expr", "default": "1."},
-      {"name": "Ttrip","label": "Trip delay", "type": "expr", "default": "0.1"}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{thr}}", "{{Ttrip}}"]
+      {"name": "thr1", "label": "Threshold 1", "type": "expr", "default": "1."},
+      {"name": "t1",   "label": "Time 1",       "type": "expr", "default": "1."}
+    ]
   },
-
+  "timer2": {
+    "label": "Timer (2 thresholds)",
+    "category": "Timers",
+    "description": "Timer with 2 threshold/time pairs",
+    "inputs": ["x"],
+    "outputs": ["timer"],
+    "color": "#0891b2",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{thr1}}", "{{t1}}", "{{thr2}}", "{{t2}}"],
+    "args": [
+      {"name": "thr1", "label": "Threshold 1", "type": "expr", "default": "1."},
+      {"name": "t1",   "label": "Time 1",       "type": "expr", "default": "1."},
+      {"name": "thr2", "label": "Threshold 2", "type": "expr", "default": "1.2"},
+      {"name": "t2",   "label": "Time 2",       "type": "expr", "default": "0.5"}
+    ]
+  },
+  "timer3": {
+    "label": "Timer (3 thresholds)",
+    "category": "Timers",
+    "description": "Timer with 3 threshold/time pairs",
+    "inputs": ["x"],
+    "outputs": ["timer"],
+    "color": "#0891b2",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{thr1}}", "{{t1}}", "{{thr2}}", "{{t2}}", "{{thr3}}", "{{t3}}"],
+    "args": [
+      {"name": "thr1", "label": "Threshold 1", "type": "expr", "default": "1."},
+      {"name": "t1",   "label": "Time 1",       "type": "expr", "default": "1."},
+      {"name": "thr2", "label": "Threshold 2", "type": "expr", "default": "1.2"},
+      {"name": "t2",   "label": "Time 2",       "type": "expr", "default": "0.5"},
+      {"name": "thr3", "label": "Threshold 3", "type": "expr", "default": "1.4"},
+      {"name": "t3",   "label": "Time 3",       "type": "expr", "default": "0.2"}
+    ]
+  },
+  "timer4": {
+    "label": "Timer (4 thresholds)",
+    "category": "Timers",
+    "description": "Timer with 4 threshold/time pairs",
+    "inputs": ["x"],
+    "outputs": ["timer"],
+    "color": "#0891b2",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{thr1}}", "{{t1}}", "{{thr2}}", "{{t2}}", "{{thr3}}", "{{t3}}", "{{thr4}}", "{{t4}}"],
+    "args": [
+      {"name": "thr1", "label": "Threshold 1", "type": "expr", "default": "1."},
+      {"name": "t1",   "label": "Time 1",       "type": "expr", "default": "1."},
+      {"name": "thr2", "label": "Threshold 2", "type": "expr", "default": "1.2"},
+      {"name": "t2",   "label": "Time 2",       "type": "expr", "default": "0.5"},
+      {"name": "thr3", "label": "Threshold 3", "type": "expr", "default": "1.4"},
+      {"name": "t3",   "label": "Time 3",       "type": "expr", "default": "0.2"},
+      {"name": "thr4", "label": "Threshold 4", "type": "expr", "default": "1.6"},
+      {"name": "t4",   "label": "Time 4",       "type": "expr", "default": "0.1"}
+    ]
+  },
+  "timer5": {
+    "label": "Timer (5 thresholds)",
+    "category": "Timers",
+    "description": "Timer with 5 threshold/time pairs",
+    "inputs": ["x"],
+    "outputs": ["timer"],
+    "color": "#0891b2",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{thr1}}", "{{t1}}", "{{thr2}}", "{{t2}}", "{{thr3}}", "{{t3}}", "{{thr4}}", "{{t4}}", "{{thr5}}", "{{t5}}"],
+    "args": [
+      {"name": "thr1", "label": "Threshold 1", "type": "expr", "default": "1."},
+      {"name": "t1",   "label": "Time 1",       "type": "expr", "default": "1."},
+      {"name": "thr2", "label": "Threshold 2", "type": "expr", "default": "1.2"},
+      {"name": "t2",   "label": "Time 2",       "type": "expr", "default": "0.5"},
+      {"name": "thr3", "label": "Threshold 3", "type": "expr", "default": "1.4"},
+      {"name": "t3",   "label": "Time 3",       "type": "expr", "default": "0.2"},
+      {"name": "thr4", "label": "Threshold 4", "type": "expr", "default": "1.6"},
+      {"name": "t4",   "label": "Time 4",       "type": "expr", "default": "0.1"},
+      {"name": "thr5", "label": "Threshold 5", "type": "expr", "default": "1.8"},
+      {"name": "t5",   "label": "Time 5",       "type": "expr", "default": "0.05"}
+    ]
+  },
   "tsa": {
     "label": "Time-Signal Accumulator",
     "category": "Timers",
-    "description": "Accumulates signal over time; resets on condition",
-    "color": "#20c997",
+    "description": "Accumulates time signal",
     "inputs": ["x"],
-    "outputs": ["acc"],
-    "args": [
-      {"name": "reset", "label": "Reset signal", "type": "state", "default": ""}
-    ],
-    "dsl_lines": ["{{input}}", "{{output}}", "{{reset}}"]
+    "outputs": ["y"],
+    "color": "#0891b2",
+    "dsl_lines": ["{{input}}", "{{output}}"],
+    "args": []
   },
-
   "f_inj": {
-    "label": "INJ Output (ix, iy)",
+    "label": "INJ Output Equations",
     "category": "Power System",
-    "description": "[INJ only] Compute ix, iy current injection outputs from Pref and Qref",
-    "color": "#842029",
+    "description": "Computes ix, iy injection outputs. Only valid in INJ models.",
+    "inputs": [],
+    "outputs": [],
+    "color": "#dc2626",
     "model_types": ["inj"],
-    "inputs": ["Pref", "Qref"],
-    "outputs": ["ix", "iy"],
-    "args": [
-      {"name": "Pref", "label": "Active power ref",   "type": "state", "default": ""},
-      {"name": "Qref", "label": "Reactive power ref",  "type": "state", "default": ""}
-    ],
-    "dsl_lines": ["{{Pref}}", "{{Qref}}"]
+    "dsl_lines": [],
+    "args": []
   },
-
   "f_twop_bus1": {
-    "label": "TWOP Bus 1 Injection",
+    "label": "TWOP Bus 1 Output",
     "category": "Power System",
-    "description": "[TWOP only] Current injection at bus 1",
-    "color": "#842029",
+    "description": "Computes current injection at bus 1. Only valid in TWOP models.",
+    "inputs": [],
+    "outputs": [],
+    "color": "#dc2626",
     "model_types": ["twop"],
-    "inputs": ["P1", "Q1"],
-    "outputs": ["ix1", "iy1"],
-    "args": [
-      {"name": "P1", "label": "Active power bus 1",   "type": "state", "default": ""},
-      {"name": "Q1", "label": "Reactive power bus 1", "type": "state", "default": ""}
-    ],
-    "dsl_lines": ["{{P1}}", "{{Q1}}"]
+    "dsl_lines": [],
+    "args": []
   },
-
   "f_twop_bus2": {
-    "label": "TWOP Bus 2 Injection",
+    "label": "TWOP Bus 2 Output",
     "category": "Power System",
-    "description": "[TWOP only] Current injection at bus 2",
-    "color": "#842029",
+    "description": "Computes current injection at bus 2. Only valid in TWOP models.",
+    "inputs": [],
+    "outputs": [],
+    "color": "#dc2626",
     "model_types": ["twop"],
-    "inputs": ["P2", "Q2"],
-    "outputs": ["ix2", "iy2"],
-    "args": [
-      {"name": "P2", "label": "Active power bus 2",   "type": "state", "default": ""},
-      {"name": "Q2", "label": "Reactive power bus 2", "type": "state", "default": ""}
-    ],
-    "dsl_lines": ["{{P2}}", "{{Q2}}"]
+    "dsl_lines": [],
+    "args": []
   }
 }
