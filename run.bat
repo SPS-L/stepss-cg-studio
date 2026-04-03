@@ -1,4 +1,4 @@
 @echo off
-echo Starting CG-Studio...
-python server/app.py
+echo Starting CODEGEN Visual Block Editor...
+python server\app.py
 pause

@@ -1,4 +1,6 @@
 {
-  "codegen_path": "",
-  "workspace": ""
+  "codegen_path": "codegen",
+  "workspace_dir": "workspace",
+  "host": "127.0.0.1",
+  "port": 8765
 }

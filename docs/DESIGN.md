@@ -1,167 +1,215 @@
-# CODEGEN Visual Block Editor — Full Design Plan
+# CODEGEN Visual Block Editor — Architectural Design Plan
 
-## Overview
+## Vision
 
-This document describes the complete design for `cg-studio`, a browser-based drag-and-drop block diagram editor that generates and parses CODEGEN DSL `.txt` files for RAMSES user-defined device models. The tool is backed by a lightweight Python local server, enabling direct shell-out to `codegen.exe` / `codegen` for `.f90` generation in one click.
-
-**Project codename:** `cg-studio`  
-**Repository:** `SPS-L/stepss-cg-studio`  
-**License:** MIT
-
----
-
-## Architecture Decision Summary
-
-| Concern | Decision | Rationale |
-|---------|----------|-----------|
-| Deployment | Local Python server (`python app.py`) | Enables live codegen→f90 shell-out; trivially cross-platform; no packaging overhead |
-| Frontend framework | Vanilla JS + [Drawflow](https://github.com/jerosoler/Drawflow) | Zero-dependency drag-and-drop graph library, MIT licensed |
-| Backend | FastAPI (Python ≥ 3.10) | Single-file server, async, subprocess support; `pip install fastapi uvicorn` |
-| Users | PhD/MSc students + power users | Structured forms + validation; raw DSL preview always visible |
-| Signal wiring | Named-port / autocomplete | Each block port carries the state variable name; matches DSL semantics |
-| Section split | Canvas = `%models`; forms = everything else | `%parameters` contains free-form algebraic expressions |
-| `algeq` on canvas | Formula node with one output port | Preserves signal-flow topology |
-| Block catalogue | `blocks.json` (hand-maintained) | Adding a new block = one JSON entry, no code change |
-| Persistence | `.cgproj` JSON file | Stores canvas layout + full DSL model data |
+A FastAPI-backed, browser-based, drag-and-drop editor for assembling
+RAMSES user-defined device models (EXC / TOR / INJ / TWOP) via the STEPSS CODEGEN DSL.
+No build step. Run with `python server/app.py`.
 
 ---
 
 ## Technology Stack
 
-### Backend (`server/`)
-- **Python ≥ 3.10** with `fastapi`, `uvicorn`, `aiofiles`
-- `subprocess.run()` to invoke `codegen` binary (path in `config.json`)
-- Serves frontend static files at `/`
-
-### Frontend (`frontend/`)
-- **HTML + CSS + Vanilla JS** — no build step
-- **[Drawflow](https://github.com/jerosoler/Drawflow)** — block-diagram canvas (MIT)
-- **[CodeMirror 6](https://codemirror.net/)** — DSL preview with syntax highlighting (MIT)
-- **[Pico CSS](https://picocss.com/)** — minimal classless styling (MIT)
+| Layer | Technology | Rationale |
+|-------|------------|-----------|
+| Backend API | FastAPI + uvicorn | Fast async Python, auto-docs at `/docs` |
+| DSL parse/emit | Pure Python (`dsl_parser.py`, `dsl_emitter.py`) | No extra deps |
+| Canvas | Drawflow (MIT, CDN) | Drag-drop node graph, zero-build JS |
+| DSL preview | CodeMirror 6 (MIT, CDN) | Syntax highlight, minimal footprint |
+| Forms | Vanilla JS + HTML5 | No framework overhead |
+| State store | In-memory JS object (`store.js`) | ModelProject JSON mirrors backend |
+| Tests | pytest | Standard Python |
 
 ---
 
-## Internal Model Data Structure (`.cgproj` schema)
+## Deployment
+
+- **Local Python server** (`python server/app.py` → `http://localhost:8765`)
+- Frontend served as static files from `frontend/`
+- `codegen.exe` called via subprocess; path configured in `server/config.json`
+- Works on Windows, Linux, macOS (RAMSES itself is Windows-only)
+
+---
+
+## ModelProject JSON Schema
 
 ```json
 {
   "version": 1,
-  "modelType": "exc",
-  "modelName": "ST1A",
+  "modelType": "exc | tor | inj | twop",
+  "modelName": "string",
   "data": [
-    {"name": "KA", "comment": "AVR gain"},
-    {"name": "TA", "comment": "AVR time constant"}
+    { "name": "TA", "comment": "" }
   ],
   "parameters": [
-    {"name": "VREF", "expr": "vcomp([v],[p],[q],{Kv},{Rc},{Xc})+([vf]/{KA})", "continuation": true}
+    { "name": "Vo", "expr": "v+(vf/{KE})", "continuation": true }
   ],
   "states": [
-    {"name": "Vc",  "initExpr": "vcomp([v],[p],[q],{Kv},{Rc},{Xc})"},
-    {"name": "VA",  "initExpr": "[vf]"}
+    { "name": "avr1", "initExpr": "vf/{KE}", "comment": "" }
   ],
-  "observables": ["VA", "vf"],
-  "canvas": {
-    "drawflow": {},
-    "nodeMap": {
-      "node_1": {"blockType": "tf1p", "comment": "voltage measurement",
-                 "inputState": "Vc1", "outputState": "Vc",
-                 "args": {"gain": "1.d0", "T": "{TR}"}},
-      "node_2": {"blockType": "lim", "comment": "deltaV limiter",
-                 "inputState": "deltaV", "outputState": "V1",
-                 "args": {"lo": "{VIMIN}", "hi": "{VIMAX}"}}
+  "observables": ["vf", "dvpss"],
+  "blocks": [
+    {
+      "id": 1,
+      "blockType": "tf1plim",
+      "comment": "AVR first stage",
+      "args": { "K": "1.", "T": "{TA}", "lo": "{EMIN}", "hi": "{EMAX}" },
+      "inputStates": ["avr2"],
+      "outputState": "vf",
+      "rawArgLines": []
     }
-  }
+  ],
+  "canvas": {
+    "nodeMap": { "1": { "x": 300, "y": 150 } },
+    "drawflow": {}
+  },
+  "errors": []
 }
 ```
 
 ---
 
-## REST API
+## Block Catalogue Schema (`frontend/blocks.json`)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/` | Serves `frontend/index.html` |
-| `GET` | `/blocks` | Returns `blocks.json` catalogue |
-| `POST` | `/parse` | DSL text → ModelProject JSON |
-| `POST` | `/emit` | ModelProject JSON → DSL text |
-| `POST` | `/run_codegen` | Saves DSL, shells to codegen, returns `.f90` |
-| `GET` | `/config` | Read `config.json` |
-| `PUT` | `/config` | Update `config.json` |
-
----
-
-## UI Layout
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│  Header: [Model Type ▼] [Model Name] [New][Open][Save][Export DSL][Run Codegen]  │
-├──────────┬──────────────────────────────────┬─────────────────┐
-│  Block   │                                  │  DSL Preview   │
-│  Palette │        Canvas (Drawflow)          │  (CodeMirror)  │
-│          │                                  │                │
-│ ▶ TFs    │  ┌────┐    ┌────┐    ┌──────┐   │  exc           │
-│   tf1p   │  │algeq├──▶│tf1p├──▶│tf1plim│  │  ST1A          │
-│ ▶ Limits │  └────┘    └────┘    └──────┘   │  %data ...     │
-│ ▶ PI/PID │                                  │  %models ...   │
-├──────────┴──────────────────────────────────┤                │
-│  Properties Panel (selected node)           │                │
-│  Block: tf1p  State name: [Vc]              │                │
-│  Gain K: [1.d0]   Time const T: [{TR}]       └────────────────┘
-├────────────────────────────────────────────────────────┘
-│  Tabs: [%data] [%parameters] [%states] [%observables]        │
-└────────────────────────────────────────────────────────┘
+```json
+{
+  "blockname": {
+    "label":       "Human-readable name",
+    "category":    "Transfer Functions | Limiters | Controllers | ...",
+    "description": "Tooltip text",
+    "inputs":      ["u"],
+    "outputs":     ["y"],
+    "color":       "#hexcolor",
+    "model_types": ["exc","tor","inj","twop"],
+    "dsl_lines": [
+      "{{input}}",
+      "{{output}}",
+      "{{K}}",
+      "{{T}}"
+    ],
+    "args": [
+      {
+        "name":    "K",
+        "label":   "Gain K",
+        "type":    "expr | state",
+        "default": "1."
+      }
+    ]
+  }
+}
 ```
 
----
+### DSL Line Templates
 
-## Model Type — RAMSES Interface Variables
-
-| Model | RAMSES Inputs | Mandatory Output(s) |
-|-------|--------------|---------------------|
-| `exc` | `v`, `p`, `q`, `omega`, `if`, `vf` | `vf` |
-| `tor` | `p`, `omega`, `tm` | `tm` |
-| `inj` | `omega`, `vx`, `vy`, `ix`, `iy` | `ix`, `iy` |
-| `twop` | `omega1`, `omega2`, `vx1`, `vy1`, `vx2`, `vy2`, `ix1`, `iy1`, `ix2`, `iy2` | `ix1`, `iy1`, `ix2`, `iy2` |
+| Template token | Meaning |
+|---------------|---------|
+| `{{input}}`  | Single input signal name (state or RAMSES var) |
+| `{{inputs}}` | Multi-input: emit each input on its own line |
+| `{{output}}` | Output signal name (state) |
+| `{{name}}`   | Named parameter (becomes `args["name"]`) |
 
 ---
 
-## Validation Rules
+## UI Architecture (Phase 2)
 
-- State name uniqueness across all nodes
-- Reserved name check (RAMSES input variables per model type)
-- Mandatory output coverage per model type (`vf`, `tm`, `ix`+`iy`, `ix1`+`iy1`+`ix2`+`iy2`)
-- `f_inj` / `f_twop_bus*` blocks only available for the correct model type
-- Data/state/parameter name collision check
-- Equation balance: `n_equations == n_states`
-- Topological sort succeeds (no wired cycles)
+```
+index.html
+├── #sidebar        Block palette (grouped by category, expandable)
+├── #canvas         Drawflow canvas (drag-drop wiring)
+├── #panel-right    Tabbed panel:
+│   ├── tab: Model  modelType / modelName / observables
+│   ├── tab: Data   %data table (name, comment)
+│   ├── tab: Params %parameters table (name, expr, continuation)
+│   ├── tab: States %states table (name, initExpr, comment)
+│   └── tab: Props  Selected block properties form
+├── #dsl-preview    Live CodeMirror 6 read-only DSL preview
+└── #toolbar        New | Load .txt | Load .cgproj | Save DSL | Run Codegen | Save .cgproj
+```
 
 ---
 
-## Build Roadmap
+## Canvas Interaction Model
 
-### Phase 1 — Foundation
-- [x] `dsl_parser.py` with tests
-- [x] `dsl_emitter.py` with tests
-- [x] `blocks.json` full catalogue
-- [x] FastAPI server skeleton with all endpoints
-- [ ] Drawflow canvas + block palette
-- [ ] Drag-drop placement with auto-named ports
+- **Drag from sidebar** → drop on canvas → creates a Drawflow node
+- **Output port** (right side of node) → **input port** (left side of next node)
+  - Connecting two nodes sets `inputStates[0]` of target = `outputState` of source
+  - Auto-generates state name: `<blockType><id>` (e.g., `tf1p3`) — editable in Props tab
+- **Double-click a node** → opens Props tab, showing its `args` as a form
+- **Right-click → Delete** — removes node + all its wires
+- **Multi-input blocks** (max2v, min2v, switch*) render multiple left-side ports
 
-### Phase 2 — Core Authoring
-- [ ] Wire connections + port-name synchronisation
-- [ ] Properties Panel
-- [ ] Live DSL preview (CodeMirror)
-- [ ] `%data` / `%states` / `%observables` form tabs
-- [ ] Client-side validation
+### Signal Name Resolution
 
-### Phase 3 — Import & Codegen Integration
-- [ ] Canvas auto-layout from parsed blocks (topological / Sugiyama)
-- [ ] “Open DSL” button (file picker → parse → canvas)
-- [ ] `/run_codegen` integration + config UI
-- [ ] `.cgproj` save/load
+All signal identifiers are **strings** — either state variable names from
+`%states` or RAMSES built-in variables (`[var]` in DSL, stored bare as `v`, `omega`, etc.).
+The emitter wraps RAMSES inputs in `[...]` and data params in `{...}` automatically.
 
-### Phase 4 — Polish
-- [ ] RAMSES input terminal nodes on canvas edge
-- [ ] Undo/redo stack
-- [ ] Bundled example projects
-- [ ] Full README + screenshots
+### Topological Sort (emit order)
+
+Before calling `emit_dsl()`, the frontend performs Kahn’s algorithm topological sort
+over the block graph (edges = wires). Cycles trigger an error banner.
+
+---
+
+## Project File Format (`.cgproj`)
+
+```json
+{
+  "format": "cgproj-v1",
+  "savedAt": "2026-04-01T12:00:00Z",
+  "project": { "<ModelProject JSON>" }
+}
+```
+
+Canvas positions stored in `project.canvas.nodeMap`.
+
+---
+
+## API Endpoints
+
+| Method | Path | Request | Response |
+|--------|------|---------|----------|
+| GET | `/` | — | `index.html` |
+| GET | `/blocks` | — | `blocks.json` |
+| POST | `/parse` | `{ "dsl_text": "..." }` | ModelProject JSON |
+| POST | `/emit` | `{ "project": {...} }` | `{ "dsl_text": "..." }` |
+| POST | `/run_codegen` | `{ "dsl_text": "..." }` | `{ "f90_text", "stdout", "returncode" }` |
+| GET | `/config` | — | config JSON |
+| PUT | `/config` | partial config JSON | updated config JSON |
+
+---
+
+## Phase Roadmap
+
+| Phase | Deliverable | Key files |
+|-------|------------|-----------|
+| 1 | Backend: parser, emitter, API, blocks.json, tests | `server/*.py`, `frontend/blocks.json` |
+| 2 | Frontend canvas + sidebar + DSL preview | `frontend/js/*.js`, `frontend/index.html` |
+| 3 | Right-panel forms (data/params/states) | `frontend/js/forms.js` |
+| 4 | Project save/load (.cgproj), import DSL .txt | `frontend/js/main.js` |
+| 5 | Run Codegen button, .f90 download, error display | `frontend/js/api.js` |
+| 6 | Polish: undo/redo, validation overlay, colour themes | — |
+
+---
+
+## Key Engineering Challenges
+
+1. **`_parse_blocks()` in `dsl_parser.py`** — must look up each `& blockname` in
+   `blocks.json` to know how many argument lines to consume before the next `&`.
+   Unknown block names emit a warning and skip to the next `&` line.
+
+2. **Auto-layout on import** — when loading a `.txt` DSL (no canvas metadata),
+   Drawflow positions are assigned using a Sugiyama layered-graph placement
+   computed in `frontend/js/canvas.js` from the signal dependency graph.
+
+3. **Topological sort** — `store.js` must detect cycles and report them as user
+   errors rather than silently emitting broken DSL.
+
+4. **`algeq` positioning** — an `algeq` referencing state X must appear
+   *before* the block that introduces X in the block sequence.
+
+---
+
+## License
+
+MIT. See repository root.

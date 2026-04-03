@@ -1,3 +1,3 @@
-#!/bin/bash
-echo "Starting CG-Studio..."
+#!/usr/bin/env bash
+echo "Starting CODEGEN Visual Block Editor..."
 python server/app.py
