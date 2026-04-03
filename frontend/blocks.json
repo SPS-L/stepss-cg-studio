@@ -4,97 +4,562 @@
     "category": "Algebraic",
     "description": "Implicit algebraic equation: f(x) = 0. Write the residual expression.",
     "inputs": [],
-    "outputs": ["residual"],
+    "outputs": [
+      "residual"
+    ],
     "color": "#6b7280",
-    "dsl_lines": ["{{expr}}"],
+    "dsl_lines": [
+      "{{expr}}"
+    ],
     "args": [
-      {"name": "expr", "label": "Residual expression (= 0)", "type": "expr", "default": ""}
+      {
+        "name": "expr",
+        "label": "Residual expression (= 0)",
+        "type": "expr",
+        "default": ""
+      }
     ]
   },
   "tf1p": {
     "label": "1st-Order TF",
     "category": "Transfer Functions",
     "description": "K / (1 + T\u00b7s)",
-    "inputs": ["u"],
-    "outputs": ["y"],
+    "inputs": [
+      "u"
+    ],
+    "outputs": [
+      "y"
+    ],
     "color": "#2563eb",
-    "dsl_lines": ["{{input}}", "{{output}}", "{{K}}", "{{T}}"],
+    "dsl_lines": [
+      "{{input}}",
+      "{{output}}",
+      "{{K}}",
+      "{{T}}"
+    ],
     "args": [
-      {"name": "K", "label": "Gain K", "type": "expr", "default": "1."},
-      {"name": "T", "label": "Time constant T", "type": "expr", "default": "1."}
+      {
+        "name": "K",
+        "label": "Gain K",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "T",
+        "label": "Time constant T",
+        "type": "expr",
+        "default": "1."
+      }
     ]
   },
   "tf1plim": {
     "label": "1st-Order TF + Limits",
     "category": "Transfer Functions",
     "description": "K / (1 + T\u00b7s) with constant output limits",
-    "inputs": ["u"],
-    "outputs": ["y"],
+    "inputs": [
+      "u"
+    ],
+    "outputs": [
+      "y"
+    ],
     "color": "#2563eb",
-    "dsl_lines": ["{{input}}", "{{output}}", "{{K}}", "{{T}}", "{{lo}}", "{{hi}}"],
+    "dsl_lines": [
+      "{{input}}",
+      "{{output}}",
+      "{{K}}",
+      "{{T}}",
+      "{{lo}}",
+      "{{hi}}"
+    ],
     "args": [
-      {"name": "K",  "label": "Gain K",         "type": "expr", "default": "1."},
-      {"name": "T",  "label": "Time constant T", "type": "expr", "default": "1."},
-      {"name": "lo", "label": "Lower limit",     "type": "expr", "default": "-9999."},
-      {"name": "hi", "label": "Upper limit",     "type": "expr", "default": "9999."}
+      {
+        "name": "K",
+        "label": "Gain K",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "T",
+        "label": "Time constant T",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "lo",
+        "label": "Lower limit",
+        "type": "expr",
+        "default": "-9999."
+      },
+      {
+        "name": "hi",
+        "label": "Upper limit",
+        "type": "expr",
+        "default": "9999."
+      }
     ]
   },
   "tf1pvlim": {
     "label": "1st-Order TF + Var Limits",
     "category": "Transfer Functions",
     "description": "K / (1 + T\u00b7s) with variable output limits (state names)",
-    "inputs": ["u"],
-    "outputs": ["y"],
+    "inputs": [
+      "u"
+    ],
+    "outputs": [
+      "y"
+    ],
     "color": "#2563eb",
-    "dsl_lines": ["{{input}}", "{{output}}", "{{K}}", "{{T}}", "{{lo_var}}", "{{hi_var}}"],
+    "dsl_lines": [
+      "{{input}}",
+      "{{output}}",
+      "{{K}}",
+      "{{T}}",
+      "{{lo_var}}",
+      "{{hi_var}}"
+    ],
     "args": [
-      {"name": "K",      "label": "Gain K",               "type": "expr",  "default": "1."},
-      {"name": "T",      "label": "Time constant T",       "type": "expr",  "default": "1."},
-      {"name": "lo_var", "label": "Lower limit (state)",   "type": "state", "default": ""},
-      {"name": "hi_var", "label": "Upper limit (state)",   "type": "state", "default": ""}
+      {
+        "name": "K",
+        "label": "Gain K",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "T",
+        "label": "Time constant T",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "lo_var",
+        "label": "Lower limit (state)",
+        "type": "state",
+        "default": ""
+      },
+      {
+        "name": "hi_var",
+        "label": "Upper limit (state)",
+        "type": "state",
+        "default": ""
+      }
     ]
   },
   "tf1p1z": {
     "label": "Lead-Lag TF",
     "category": "Transfer Functions",
     "description": "K \u00b7 (1 + Tz\u00b7s) / (1 + Tp\u00b7s)",
-    "inputs": ["u"],
-    "outputs": ["y"],
+    "inputs": [
+      "u"
+    ],
+    "outputs": [
+      "y"
+    ],
     "color": "#2563eb",
-    "dsl_lines": ["{{input}}", "{{output}}", "{{K}}", "{{Tz}}", "{{Tp}}"],
+    "dsl_lines": [
+      "{{input}}",
+      "{{output}}",
+      "{{K}}",
+      "{{Tz}}",
+      "{{Tp}}"
+    ],
     "args": [
-      {"name": "K",  "label": "Gain K",        "type": "expr", "default": "1."},
-      {"name": "Tz", "label": "Zero time Tz",  "type": "expr", "default": "1."},
-      {"name": "Tp", "label": "Pole time Tp",  "type": "expr", "default": "1."}
+      {
+        "name": "K",
+        "label": "Gain K",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "Tz",
+        "label": "Zero time Tz",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "Tp",
+        "label": "Pole time Tp",
+        "type": "expr",
+        "default": "1."
+      }
     ]
   },
   "tf2p2z": {
     "label": "2nd-Order Lead-Lag",
     "category": "Transfer Functions",
     "description": "K \u00b7 (1 + Tz1\u00b7s)(1 + Tz2\u00b7s) / ((1 + Tp1\u00b7s)(1 + Tp2\u00b7s))",
-    "inputs": ["u"],
-    "outputs": ["y"],
+    "inputs": [
+      "u"
+    ],
+    "outputs": [
+      "y"
+    ],
     "color": "#2563eb",
-    "dsl_lines": ["{{input}}", "{{output}}", "{{K}}", "{{Tz1}}", "{{Tz2}}", "{{Tp1}}", "{{Tp2}}"],
+    "dsl_lines": [
+      "{{input}}",
+      "{{output}}",
+      "{{K}}",
+      "{{Tz1}}",
+      "{{Tz2}}",
+      "{{Tp1}}",
+      "{{Tp2}}"
+    ],
     "args": [
-      {"name": "K",   "label": "Gain K",   "type": "expr", "default": "1."},
-      {"name": "Tz1", "label": "Zero Tz1", "type": "expr", "default": "1."},
-      {"name": "Tz2", "label": "Zero Tz2", "type": "expr", "default": "1."},
-      {"name": "Tp1", "label": "Pole Tp1", "type": "expr", "default": "1."},
-      {"name": "Tp2", "label": "Pole Tp2", "type": "expr", "default": "1."}
+      {
+        "name": "K",
+        "label": "Gain K",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "Tz1",
+        "label": "Zero Tz1",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "Tz2",
+        "label": "Zero Tz2",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "Tp1",
+        "label": "Pole Tp1",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "Tp2",
+        "label": "Pole Tp2",
+        "type": "expr",
+        "default": "1."
+      }
     ]
   },
   "tfder1p": {
     "label": "Derivative / Washout",
     "category": "Transfer Functions",
     "description": "K\u00b7s / (1 + T\u00b7s)  \u2014 derivative filter / washout",
-    "inputs": ["u"],
-    "outputs": ["y"],
+    "inputs": [
+      "u"
+    ],
+    "outputs": [
+      "y"
+    ],
     "color": "#2563eb",
-    "dsl_lines": ["{{input}}", "{{output}}", "{{K}}", "{{T}}"],
+    "dsl_lines": [
+      "{{input}}",
+      "{{output}}",
+      "{{K}}",
+      "{{T}}"
+    ],
     "args": [
-      {"name": "K", "label": "Gain K",        "type": "expr", "default": "1."},
-      {"name": "T", "label": "Time constant T","type": "expr", "default": "1."}
+      {
+        "name": "K",
+        "label": "Gain K",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "T",
+        "label": "Time constant T",
+        "type": "expr",
+        "default": "1."
+      }
+    ]
+  },
+  "tf1p2lim": {
+    "label": "1st-Order TF + Rate+Output Limits",
+    "category": "Transfer Functions",
+    "description": "K/(1+T\u00b7s) with non-windup output limits [xmin,xmax] and rate-of-change limits [xdotmin,xdotmax]",
+    "inputs": [
+      "u"
+    ],
+    "outputs": [
+      "y"
+    ],
+    "color": "#2563eb",
+    "dsl_lines": [
+      "{{input}}",
+      "{{output}}",
+      "{{gain}}",
+      "{{tpole}}",
+      "{{xmin}}",
+      "{{xmax}}",
+      "{{xdotmin}}",
+      "{{xdotmax}}"
+    ],
+    "args": [
+      {
+        "name": "gain",
+        "label": "Gain K",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "tpole",
+        "label": "Pole time constant T",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "xmin",
+        "label": "Output lower limit",
+        "type": "expr",
+        "default": "-9999."
+      },
+      {
+        "name": "xmax",
+        "label": "Output upper limit",
+        "type": "expr",
+        "default": "9999."
+      },
+      {
+        "name": "xdotmin",
+        "label": "Rate lower limit",
+        "type": "expr",
+        "default": "-9999."
+      },
+      {
+        "name": "xdotmax",
+        "label": "Rate upper limit",
+        "type": "expr",
+        "default": "9999."
+      }
+    ]
+  },
+  "tf1p2limr": {
+    "label": "1st-Order TF + Rate+Output Limits + Reset",
+    "category": "Transfer Functions",
+    "description": "tf1p2lim with integrator reset to zero when reset_param \u2248 reset_flg (set by CHGPRM)",
+    "inputs": [
+      "u"
+    ],
+    "outputs": [
+      "y"
+    ],
+    "color": "#2563eb",
+    "dsl_lines": [
+      "{{input}}",
+      "{{output}}",
+      "{{gain}}",
+      "{{tpole}}",
+      "{{xmin}}",
+      "{{xmax}}",
+      "{{xdotmin}}",
+      "{{xdotmax}}",
+      "{{reset_param}}",
+      "{{reset_flg}}"
+    ],
+    "args": [
+      {
+        "name": "gain",
+        "label": "Gain K",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "tpole",
+        "label": "Pole time constant T",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "xmin",
+        "label": "Output lower limit",
+        "type": "expr",
+        "default": "-9999."
+      },
+      {
+        "name": "xmax",
+        "label": "Output upper limit",
+        "type": "expr",
+        "default": "9999."
+      },
+      {
+        "name": "xdotmin",
+        "label": "Rate lower limit",
+        "type": "expr",
+        "default": "-9999."
+      },
+      {
+        "name": "xdotmax",
+        "label": "Rate upper limit",
+        "type": "expr",
+        "default": "9999."
+      },
+      {
+        "name": "reset_param",
+        "label": "Reset parameter to check",
+        "type": "expr",
+        "default": ""
+      },
+      {
+        "name": "reset_flg",
+        "label": "Reset flag (CHGPRM)",
+        "type": "expr",
+        "default": ""
+      }
+    ]
+  },
+  "fsa": {
+    "label": "Finite-State Automaton",
+    "category": "Automata",
+    "description": "Arbitrary number of states and transitions. Uses special multi-line DSL syntax with #N state headers and -> N transitions.",
+    "inputs": [],
+    "outputs": [],
+    "color": "#92400e",
+    "dsl_lines": [
+      "{{fsa_body}}"
+    ],
+    "args": [
+      {
+        "name": "fsa_body",
+        "label": "FSA body (initial state, then #1 ... ## blocks)",
+        "type": "multiline",
+        "default": ""
+      }
+    ]
+  },
+  "timersc1": {
+    "label": "Staircase Timer (1 point)",
+    "category": "Timers",
+    "description": "Timer with staircase characteristic \u2014 1 threshold/delay pair",
+    "inputs": ["x"],
+    "outputs": ["timer"],
+    "color": "#0891b2",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{val1}}", "{{delay1}}"],
+    "args": [
+      {"name": "val1",   "label": "Threshold 1", "type": "expr", "default": "1."},
+      {"name": "delay1", "label": "Delay 1",     "type": "expr", "default": "1."}
+    ]
+  },
+  "timersc2": {
+    "label": "Staircase Timer (2 points)",
+    "category": "Timers",
+    "description": "Timer with staircase characteristic \u2014 2 threshold/delay pairs",
+    "inputs": ["x"],
+    "outputs": ["timer"],
+    "color": "#0891b2",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{val1}}", "{{delay1}}", "{{val2}}", "{{delay2}}"],
+    "args": [
+      {"name": "val1",   "label": "Threshold 1", "type": "expr", "default": "1."},
+      {"name": "delay1", "label": "Delay 1",     "type": "expr", "default": "1."},
+      {"name": "val2",   "label": "Threshold 2", "type": "expr", "default": "1."},
+      {"name": "delay2", "label": "Delay 2",     "type": "expr", "default": "1."}
+    ]
+  },
+  "timersc3": {
+    "label": "Staircase Timer (3 points)",
+    "category": "Timers",
+    "description": "Timer with staircase characteristic \u2014 3 threshold/delay pairs",
+    "inputs": ["x"],
+    "outputs": ["timer"],
+    "color": "#0891b2",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{val1}}", "{{delay1}}", "{{val2}}", "{{delay2}}", "{{val3}}", "{{delay3}}"],
+    "args": [
+      {"name": "val1",   "label": "Threshold 1", "type": "expr", "default": "1."},
+      {"name": "delay1", "label": "Delay 1",     "type": "expr", "default": "1."},
+      {"name": "val2",   "label": "Threshold 2", "type": "expr", "default": "1."},
+      {"name": "delay2", "label": "Delay 2",     "type": "expr", "default": "1."},
+      {"name": "val3",   "label": "Threshold 3", "type": "expr", "default": "1."},
+      {"name": "delay3", "label": "Delay 3",     "type": "expr", "default": "1."}
+    ]
+  },
+  "timersc4": {
+    "label": "Staircase Timer (4 points)",
+    "category": "Timers",
+    "description": "Timer with staircase characteristic \u2014 4 threshold/delay pairs",
+    "inputs": ["x"],
+    "outputs": ["timer"],
+    "color": "#0891b2",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{val1}}", "{{delay1}}", "{{val2}}", "{{delay2}}", "{{val3}}", "{{delay3}}", "{{val4}}", "{{delay4}}"],
+    "args": [
+      {"name": "val1",   "label": "Threshold 1", "type": "expr", "default": "1."},
+      {"name": "delay1", "label": "Delay 1",     "type": "expr", "default": "1."},
+      {"name": "val2",   "label": "Threshold 2", "type": "expr", "default": "1."},
+      {"name": "delay2", "label": "Delay 2",     "type": "expr", "default": "1."},
+      {"name": "val3",   "label": "Threshold 3", "type": "expr", "default": "1."},
+      {"name": "delay3", "label": "Delay 3",     "type": "expr", "default": "1."},
+      {"name": "val4",   "label": "Threshold 4", "type": "expr", "default": "1."},
+      {"name": "delay4", "label": "Delay 4",     "type": "expr", "default": "1."}
+    ]
+  },
+  "timersc5": {
+    "label": "Staircase Timer (5 points)",
+    "category": "Timers",
+    "description": "Timer with staircase characteristic \u2014 5 threshold/delay pairs",
+    "inputs": ["x"],
+    "outputs": ["timer"],
+    "color": "#0891b2",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{val1}}", "{{delay1}}", "{{val2}}", "{{delay2}}", "{{val3}}", "{{delay3}}", "{{val4}}", "{{delay4}}", "{{val5}}", "{{delay5}}"],
+    "args": [
+      {"name": "val1",   "label": "Threshold 1", "type": "expr", "default": "1."},
+      {"name": "delay1", "label": "Delay 1",     "type": "expr", "default": "1."},
+      {"name": "val2",   "label": "Threshold 2", "type": "expr", "default": "1."},
+      {"name": "delay2", "label": "Delay 2",     "type": "expr", "default": "1."},
+      {"name": "val3",   "label": "Threshold 3", "type": "expr", "default": "1."},
+      {"name": "delay3", "label": "Delay 3",     "type": "expr", "default": "1."},
+      {"name": "val4",   "label": "Threshold 4", "type": "expr", "default": "1."},
+      {"name": "delay4", "label": "Delay 4",     "type": "expr", "default": "1."},
+      {"name": "val5",   "label": "Threshold 5", "type": "expr", "default": "1."},
+      {"name": "delay5", "label": "Delay 5",     "type": "expr", "default": "1."}
+    ]
+  },
+  "timersc6": {
+    "label": "Staircase Timer (6 points)",
+    "category": "Timers",
+    "description": "Timer with staircase characteristic \u2014 6 threshold/delay pairs",
+    "inputs": ["x"],
+    "outputs": ["timer"],
+    "color": "#0891b2",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{val1}}", "{{delay1}}", "{{val2}}", "{{delay2}}", "{{val3}}", "{{delay3}}", "{{val4}}", "{{delay4}}", "{{val5}}", "{{delay5}}", "{{val6}}", "{{delay6}}"],
+    "args": [
+      {"name": "val1",   "label": "Threshold 1", "type": "expr", "default": "1."},
+      {"name": "delay1", "label": "Delay 1",     "type": "expr", "default": "1."},
+      {"name": "val2",   "label": "Threshold 2", "type": "expr", "default": "1."},
+      {"name": "delay2", "label": "Delay 2",     "type": "expr", "default": "1."},
+      {"name": "val3",   "label": "Threshold 3", "type": "expr", "default": "1."},
+      {"name": "delay3", "label": "Delay 3",     "type": "expr", "default": "1."},
+      {"name": "val4",   "label": "Threshold 4", "type": "expr", "default": "1."},
+      {"name": "delay4", "label": "Delay 4",     "type": "expr", "default": "1."},
+      {"name": "val5",   "label": "Threshold 5", "type": "expr", "default": "1."},
+      {"name": "delay5", "label": "Delay 5",     "type": "expr", "default": "1."},
+      {"name": "val6",   "label": "Threshold 6", "type": "expr", "default": "1."},
+      {"name": "delay6", "label": "Delay 6",     "type": "expr", "default": "1."}
+    ]
+  },
+  "timer11": {
+    "label": "Timer (11 thresholds)",
+    "category": "Timers",
+    "description": "Timer with piecewise-linear characteristic \u2014 11 threshold/time pairs",
+    "inputs": ["x"],
+    "outputs": ["timer"],
+    "color": "#0891b2",
+    "dsl_lines": ["{{input}}", "{{output}}", "{{thr1}}", "{{t1}}", "{{thr2}}", "{{t2}}", "{{thr3}}", "{{t3}}", "{{thr4}}", "{{t4}}", "{{thr5}}", "{{t5}}", "{{thr6}}", "{{t6}}", "{{thr7}}", "{{t7}}", "{{thr8}}", "{{t8}}", "{{thr9}}", "{{t9}}", "{{thr10}}", "{{t10}}", "{{thr11}}", "{{t11}}"],
+    "args": [
+      {"name": "thr1",  "label": "Threshold 1",  "type": "expr", "default": "1."},
+      {"name": "t1",    "label": "Time 1",        "type": "expr", "default": "1."},
+      {"name": "thr2",  "label": "Threshold 2",  "type": "expr", "default": "1."},
+      {"name": "t2",    "label": "Time 2",        "type": "expr", "default": "1."},
+      {"name": "thr3",  "label": "Threshold 3",  "type": "expr", "default": "1."},
+      {"name": "t3",    "label": "Time 3",        "type": "expr", "default": "1."},
+      {"name": "thr4",  "label": "Threshold 4",  "type": "expr", "default": "1."},
+      {"name": "t4",    "label": "Time 4",        "type": "expr", "default": "1."},
+      {"name": "thr5",  "label": "Threshold 5",  "type": "expr", "default": "1."},
+      {"name": "t5",    "label": "Time 5",        "type": "expr", "default": "1."},
+      {"name": "thr6",  "label": "Threshold 6",  "type": "expr", "default": "1."},
+      {"name": "t6",    "label": "Time 6",        "type": "expr", "default": "1."},
+      {"name": "thr7",  "label": "Threshold 7",  "type": "expr", "default": "1."},
+      {"name": "t7",    "label": "Time 7",        "type": "expr", "default": "1."},
+      {"name": "thr8",  "label": "Threshold 8",  "type": "expr", "default": "1."},
+      {"name": "t8",    "label": "Time 8",        "type": "expr", "default": "1."},
+      {"name": "thr9",  "label": "Threshold 9",  "type": "expr", "default": "1."},
+      {"name": "t9",    "label": "Time 9",        "type": "expr", "default": "1."},
+      {"name": "thr10", "label": "Threshold 10", "type": "expr", "default": "1."},
+      {"name": "t10",   "label": "Time 10",       "type": "expr", "default": "1."},
+      {"name": "thr11", "label": "Threshold 11", "type": "expr", "default": "1."},
+      {"name": "t11",   "label": "Time 11",       "type": "expr", "default": "1."}
     ]
   },
   "lim": {
@@ -169,8 +634,8 @@
     "color": "#16a34a",
     "dsl_lines": ["{{input}}", "{{output}}", "{{Ki}}", "{{Kp}}"],
     "args": [
-      {"name": "Ki", "label": "Integral gain Ki",      "type": "expr", "default": "1."},
-      {"name": "Kp", "label": "Proportional gain Kp",  "type": "expr", "default": "1."}
+      {"name": "Ki", "label": "Integral gain Ki",     "type": "expr", "default": "1."},
+      {"name": "Kp", "label": "Proportional gain Kp", "type": "expr", "default": "1."}
     ]
   },
   "pictllim": {
