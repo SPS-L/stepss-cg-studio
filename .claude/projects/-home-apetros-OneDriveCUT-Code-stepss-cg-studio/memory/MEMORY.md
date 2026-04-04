@@ -1,0 +1,2 @@
+- [Codegen Upstream](reference_codegen_upstream.md) — stepss-Codegen repo: CLI, DSL spec, block source, validation rules
+- [Codegen Docs](reference_codegen_docs.md) — stepss-docs repo: block reference, model types, built-in functions, DAE framework
