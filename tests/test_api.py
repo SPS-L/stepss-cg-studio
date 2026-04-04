@@ -390,6 +390,26 @@ class TestRunCodegen:
         client.put("/config", json={"codegen_path": "codegen"})
 
 
+# ── mandatory outputs ────────────────────────────────────────────────────────
+
+class TestMandatoryOutputs:
+    def test_mandatory_outputs_status(self):
+        r = client.get("/mandatory_outputs")
+        assert r.status_code == 200
+
+    def test_mandatory_outputs_contains_all_types(self):
+        data = client.get("/mandatory_outputs").json()
+        for mtype in ("exc", "tor", "inj", "twop"):
+            assert mtype in data
+
+    def test_mandatory_outputs_values(self):
+        data = client.get("/mandatory_outputs").json()
+        assert "vf" in data["exc"]
+        assert "tm" in data["tor"]
+        assert set(data["inj"]) == {"ix", "iy"}
+        assert set(data["twop"]) == {"ix1", "iy1", "ix2", "iy2"}
+
+
 # ── static / SPA fallback ─────────────────────────────────────────────────────
 
 class TestStatic:

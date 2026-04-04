@@ -40,7 +40,7 @@ body {
   padding: 0 14px;
   height: 44px;
   background: var(--bg2);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 2px solid var(--accent);
   flex-shrink: 0;
   z-index: 20;
 }

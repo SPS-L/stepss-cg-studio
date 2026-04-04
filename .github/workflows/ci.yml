@@ -26,5 +26,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run parser & emitter tests
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Run all tests (unit + API + E2E)
         run: pytest tests/ -v --tb=short

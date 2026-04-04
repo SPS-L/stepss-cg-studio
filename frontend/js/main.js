@@ -28,9 +28,26 @@ window.Modal = {
 };
 
 (async function main() {
-  let blocks={};
+  let blocks={}, _mandOut={};
   try { blocks=await Api.getBlocks(); }
   catch(e) { Toast.show('Backend unreachable: '+e.message,'error',8000); }
+  try { _mandOut=await Api.getMandatoryOutputs(); }
+  catch(e) { console.warn('Could not fetch mandatory outputs:', e.message); }
+
+  // ── Colour themes per model type ──────────────────────────────────────────
+  const MODEL_THEMES = {
+    exc:  { accent:'#3b82f6', accent2:'#2563eb', nodeSel:'#2563eb33' },
+    tor:  { accent:'#22c55e', accent2:'#16a34a', nodeSel:'#16a34a33' },
+    inj:  { accent:'#f59e0b', accent2:'#d97706', nodeSel:'#d9770633' },
+    twop: { accent:'#a855f7', accent2:'#7c3aed', nodeSel:'#7c3aed33' },
+  };
+  function _applyTheme(mt) {
+    const t = MODEL_THEMES[mt] || MODEL_THEMES.exc;
+    const s = document.documentElement.style;
+    s.setProperty('--accent', t.accent);
+    s.setProperty('--accent2', t.accent2);
+    s.setProperty('--node-sel', t.nodeSel);
+  }
 
   Palette.init(blocks);
   Forms.init(onChange);
@@ -41,7 +58,7 @@ window.Modal = {
 
   // ── Model type + name ────────────────────────────────────────────────────
   document.getElementById('sel-model-type').addEventListener('change', e=>{
-    Store.patch({model_type:e.target.value}); onChange(); });
+    Store.patch({model_type:e.target.value}); _applyTheme(e.target.value); onChange(); });
   document.getElementById('inp-model-name').addEventListener('change', e=>{
     const n=e.target.value.trim().replace(/\s+/g,'_')||'my_model';
     e.target.value=n; Store.patch({model_name:n});
@@ -49,9 +66,9 @@ window.Modal = {
 
   // ── Undo / Redo / Delete / Fit ────────────────────────────────────────────
   document.getElementById('btn-undo').addEventListener('click',()=>{
-    if(Store.undo()){_reload();Forms.refresh();onChange();} });
+    if(Store.undo()){_reload();Forms.refresh();_syncHeader();onChange();} });
   document.getElementById('btn-redo').addEventListener('click',()=>{
-    if(Store.redo()){_reload();Forms.refresh();onChange();} });
+    if(Store.redo()){_reload();Forms.refresh();_syncHeader();onChange();} });
   document.getElementById('btn-del').addEventListener('click',()=>Canvas.deleteSelected());
   document.getElementById('btn-fit').addEventListener('click',()=>Canvas.fitView());
 
@@ -91,6 +108,7 @@ window.Modal = {
 
   // ── Export DSL ────────────────────────────────────────────────────────────
   document.getElementById('btn-export-dsl').addEventListener('click', async ()=>{
+    if(!(await _validateMandatoryOutputs())) return;
     await DslPreview.renderNow();
     const dsl=DslPreview.getLast();
     if(!dsl){Toast.show('Nothing to export','error');return;}
@@ -99,6 +117,7 @@ window.Modal = {
 
   // ── Run Codegen ───────────────────────────────────────────────────────────
   document.getElementById('btn-codegen').addEventListener('click', async ()=>{
+    if(!(await _validateMandatoryOutputs())) return;
     await DslPreview.renderNow();
     const dsl=DslPreview.getLast();
     if(!dsl){Toast.show('Generate DSL first','error');return;}
@@ -168,9 +187,9 @@ window.Modal = {
     if(tag==='INPUT'||tag==='TEXTAREA') return;
     if(e.key==='Delete'||e.key==='Backspace') Canvas.deleteSelected();
     if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();
-      if(Store.undo()){_reload();Forms.refresh();onChange();}}
+      if(Store.undo()){_reload();Forms.refresh();_syncHeader();onChange();}}
     if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='Z'))){
-      e.preventDefault(); if(Store.redo()){_reload();Forms.refresh();onChange();}}
+      e.preventDefault(); if(Store.redo()){_reload();Forms.refresh();_syncHeader();onChange();}}
     if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();
       document.getElementById('btn-save').click();}
     if(e.key==='Escape') {
@@ -178,6 +197,21 @@ window.Modal = {
       Modal.hide();
     }
   });
+
+  // ── Validation ────────────────────────────────────────────────────────────
+  async function _validateMandatoryOutputs() {
+    const p=Store.get();
+    const required=_mandOut[p.model_type]||[];
+    if(!required.length) return true;
+    const produced=new Set();
+    p.models.forEach(m=>(m.outputs||[]).forEach(o=>produced.add(o)));
+    const missing=required.filter(r=>!produced.has(r));
+    if(!missing.length) return true;
+    const html='<p>Missing mandatory outputs for <b>'+_esc(p.model_type)+'</b>:</p>'
+      +'<ul>'+missing.map(s=>'<li><code>'+_esc(s)+'</code></li>').join('')+'</ul>'
+      +'<p style="color:var(--warning)">The codegen binary will reject this model.</p>';
+    return Modal.show('Missing Mandatory Outputs', html, 'Export Anyway', 'Cancel');
+  }
 
   // ── Internal helpers ──────────────────────────────────────────────────────
   function onSelect(sid) { Forms.showInspector(sid); _status(); }
@@ -188,6 +222,7 @@ window.Modal = {
     document.getElementById('sel-model-type').value=p.model_type||'exc';
     document.getElementById('inp-model-name').value=p.model_name||'my_model';
     document.getElementById('model-title').textContent=p.model_name||'Untitled model';
+    _applyTheme(p.model_type||'exc');
   }
   function _undoRedo() {
     document.getElementById('btn-undo').disabled=!Store.canUndo();

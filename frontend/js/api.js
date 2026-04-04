@@ -21,6 +21,7 @@ window.Api = (() => {
   }
   return {
     getBlocks()          { return _get('/blocks'); },
+    getMandatoryOutputs(){ return _get('/mandatory_outputs'); },
     parseDSL(dsl_text)   { return _post('/parse', {dsl_text}); },
     async emitDSL(proj)  { const {dsl_text} = await _post('/emit', {project: proj}); return dsl_text; },
     runCodegen(dsl_text, model_type, model_name) {

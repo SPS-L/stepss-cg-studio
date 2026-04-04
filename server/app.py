@@ -107,6 +107,13 @@ async def get_blocks():
     return JSONResponse(content=json.loads(blocks_path.read_text(encoding="utf-8")))
 
 
+@app.get("/mandatory_outputs")
+async def get_mandatory_outputs():
+    """Return mandatory output states per model type."""
+    from dsl_parser import MANDATORY_OUTPUTS
+    return JSONResponse(content=MANDATORY_OUTPUTS)
+
+
 @app.post("/parse")
 async def parse_dsl(req: ParseRequest):
     """Parse CODEGEN DSL text -> ModelProject JSON."""
