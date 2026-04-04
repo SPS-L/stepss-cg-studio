@@ -125,12 +125,54 @@ async def parse_dsl(req: ParseRequest):
         raise HTTPException(status_code=422, detail=str(exc))
 
 
+def _normalise_project(proj: dict) -> dict:
+    """Translate frontend store shape → backend emitter shape if needed."""
+    if "modelType" in proj:
+        return proj  # already backend shape
+    out = dict(proj)
+    out["modelType"] = proj.get("model_type", "exc")
+    out["modelName"] = proj.get("model_name", "my_model")
+    # Convert models[] (frontend) → blocks[] (backend)
+    fe_models = proj.get("models", [])
+    wires = proj.get("wires", [])
+    blocks = []
+    for m in fe_models:
+        # Build inputStates from wires targeting this model
+        n_inputs = len(m.get("inputs", []))
+        input_states = [""] * n_inputs
+        for w in wires:
+            if w.get("to_node") == m.get("id"):
+                port = w.get("to_port", "input_1")
+                idx = int(port.replace("input_", "")) - 1 if port.startswith("input_") else 0
+                if 0 <= idx < n_inputs:
+                    input_states[idx] = w.get("signal_name", "")
+        blocks.append({
+            "blockType": m.get("block_type", ""),
+            "outputState": (m.get("outputs") or [""])[0],
+            "inputStates": input_states,
+            "args": m.get("args", {}),
+            "comment": m.get("comment", ""),
+            "rawArgLines": m.get("rawArgLines", []),
+        })
+    out["blocks"] = blocks
+    # Normalise states initExpr
+    out["states"] = [
+        {**s, "initExpr": s.get("initExpr", s.get("init", ""))}
+        for s in proj.get("states", [])
+    ]
+    # Observables: backend expects list of strings
+    obs = proj.get("observables", [])
+    if obs and isinstance(obs[0], dict):
+        out["observables"] = [o.get("name", "") for o in obs]
+    return out
+
+
 @app.post("/emit")
 async def emit_dsl(req: EmitRequest):
     """Convert ModelProject JSON -> DSL .txt string."""
     from dsl_emitter import emit_dsl as _emit
     try:
-        dsl_text = _emit(req.project)
+        dsl_text = _emit(_normalise_project(req.project))
         return JSONResponse(content={"dsl_text": dsl_text})
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc))
