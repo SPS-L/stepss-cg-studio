@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: ["**"]
+    tags: ["v*"]
   pull_request:
     branches: ["main"]
 
@@ -23,11 +24,57 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Install package with dev dependencies
+        run: pip install -e ".[dev]"
 
       - name: Install Playwright browsers
         run: playwright install chromium --with-deps
 
       - name: Run all tests (unit + API + E2E)
         run: pytest tests/ -v --tb=short
+
+  build:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            wheel_plat: win_amd64
+          - os: ubuntu-latest
+            wheel_plat: manylinux_2_17_x86_64
+          - os: macos-latest
+            wheel_plat: macosx_11_0_arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build tools
+        run: pip install build
+      # TODO: Add step to download platform-specific CODEGEN binary
+      # into src/cg_studio/bin/ from stepss-Codegen releases
+      - name: Set execute permission (Linux)
+        if: runner.os == 'Linux'
+        run: chmod +x src/cg_studio/bin/codegen || true
+      - name: Build wheel
+        run: python -m build --wheel
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.wheel_plat }}
+          path: dist/*.whl
+
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
