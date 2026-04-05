@@ -10,7 +10,6 @@ reorder that list before calling emit_dsl().
 
 from __future__ import annotations
 import json
-import os
 import re
 from typing import Any
 

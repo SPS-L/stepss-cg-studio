@@ -30,7 +30,6 @@ Template conventions in blocks.json dsl_lines:
 """
 
 import json
-import os
 import re
 from typing import Any
 

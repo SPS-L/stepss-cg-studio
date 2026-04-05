@@ -29,8 +29,10 @@ first.  The StaticFiles mount is added LAST at "/" with html=True so that:
 
 from __future__ import annotations
 
+import atexit
 import importlib.resources
 import json
+import platform
 import subprocess
 import tempfile
 from pathlib import Path
@@ -174,8 +176,7 @@ async def run_codegen(req: RunCodegenRequest):
     cfg = _load_config()
     codegen_bin = _resolve_codegen(cfg.get("codegen_path", "bundled"))
     if codegen_bin is None:
-        import platform as _plat
-        if _plat.system() == "Darwin":
+        if platform.system() == "Darwin":
             detail = ("CODEGEN binary is not yet available for macOS. "
                       "Please provide your own binary via Settings "
                       "(gear icon) > Codegen binary path.")
@@ -248,6 +249,7 @@ async def update_config(req: ConfigUpdateRequest):
 # html=True makes StaticFiles serve index.html for unknown paths (SPA fallback).
 _frontend_ctx = importlib.resources.as_file(FRONTEND_DIR)
 _frontend_path = _frontend_ctx.__enter__()
+atexit.register(_frontend_ctx.__exit__, None, None, None)
 app.mount("/", StaticFiles(directory=str(_frontend_path), html=True), name="frontend")
 
 
