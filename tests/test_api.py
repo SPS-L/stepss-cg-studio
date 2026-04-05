@@ -6,14 +6,10 @@ Run with:  pytest tests/test_api.py -v
 """
 
 import json
-import os
-import sys
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "server"))
-
 from fastapi.testclient import TestClient
-from app import app
+from cg_studio.app import app
 
 client = TestClient(app)
 

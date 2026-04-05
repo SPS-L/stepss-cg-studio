@@ -6,14 +6,11 @@ Run with:  pytest tests/test_parser.py -v
 """
 
 import os
-import sys
 import json
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "server"))
-
-from dsl_parser import parse_dsl, RAMSES_INPUTS, MANDATORY_OUTPUTS
-from dsl_emitter import emit_dsl
+from cg_studio.dsl_parser import parse_dsl, RAMSES_INPUTS, MANDATORY_OUTPUTS
+from cg_studio.dsl_emitter import emit_dsl
 
 EXAMPLES_DIR = os.path.join(os.path.dirname(__file__), "..", "examples")
 
@@ -341,9 +338,17 @@ def test_emit_continuation_marker():
 
 # ---- blocks.json integrity tests -------------------------------------------
 
-def test_blocks_json_loadable():
+def _blocks_json_path():
     here = os.path.dirname(os.path.abspath(__file__))
-    blocks_path = os.path.join(here, "..", "frontend", "blocks.json")
+    # Try installed package location first, then legacy frontend/ location
+    candidate = os.path.join(here, "..", "src", "cg_studio", "frontend", "blocks.json")
+    if os.path.exists(candidate):
+        return candidate
+    return os.path.join(here, "..", "frontend", "blocks.json")
+
+
+def test_blocks_json_loadable():
+    blocks_path = _blocks_json_path()
     assert os.path.exists(blocks_path), "frontend/blocks.json not found"
     with open(blocks_path) as f:
         catalogue = json.load(f)
@@ -352,8 +357,7 @@ def test_blocks_json_loadable():
 
 
 def test_blocks_json_required_keys():
-    here = os.path.dirname(os.path.abspath(__file__))
-    blocks_path = os.path.join(here, "..", "frontend", "blocks.json")
+    blocks_path = _blocks_json_path()
     with open(blocks_path) as f:
         catalogue = json.load(f)
     required_keys = {"label", "category", "dsl_lines"}
@@ -363,8 +367,7 @@ def test_blocks_json_required_keys():
 
 
 def test_blocks_json_contains_core_blocks():
-    here = os.path.dirname(os.path.abspath(__file__))
-    blocks_path = os.path.join(here, "..", "frontend", "blocks.json")
+    blocks_path = _blocks_json_path()
     with open(blocks_path) as f:
         catalogue = json.load(f)
     core = ["algeq", "tf1p", "tf1plim", "tf1p1z", "lim", "limvb",

@@ -3,21 +3,17 @@ conftest.py — shared fixtures for E2E tests.
 
 Starts a uvicorn server in a background thread on port 8799.
 """
-import sys
-import os
 import threading
 import time
 
 import pytest
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "server"))
 
 
 @pytest.fixture(scope="session")
 def server_url():
     """Start the FastAPI app in a background thread, return the base URL."""
     import uvicorn
-    from app import app
+    from cg_studio.app import app
 
     PORT = 8799
     config = uvicorn.Config(app, host="127.0.0.1", port=PORT, log_level="warning")
