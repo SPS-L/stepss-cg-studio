@@ -17,8 +17,11 @@ from typing import Any
 
 def _load_blocks(blocks_path: str | None = None) -> dict[str, Any]:
     if blocks_path is None:
-        here = os.path.dirname(os.path.abspath(__file__))
-        blocks_path = os.path.join(here, "..", "frontend", "blocks.json")
+        import importlib.resources
+        ref = importlib.resources.files("cg_studio") / "frontend" / "blocks.json"
+        with importlib.resources.as_file(ref) as p:
+            with open(p, encoding="utf-8") as fh:
+                return json.load(fh)
     with open(blocks_path, encoding="utf-8") as fh:
         return json.load(fh)
 
