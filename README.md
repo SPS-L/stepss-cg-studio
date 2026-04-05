@@ -1,3 +1,4 @@
+[![PyPI version](https://img.shields.io/pypi/v/stepss-cg-studio)](https://pypi.org/project/stepss-cg-studio/)
 [![CI](https://img.shields.io/github/actions/workflow/status/SPS-L/stepss-cg-studio/ci.yml?branch=main&label=tests)](https://github.com/SPS-L/stepss-cg-studio/actions)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -40,27 +41,44 @@ The tool supports all four CODEGEN model types:
 
 - Python ≥ 3.10
 - A modern browser (Chrome, Firefox, or Edge)
-- *(Optional)* [CODEGEN binary](https://github.com/SPS-L/stepss-Codegen) for `.f90` generation
 
-### Install
+### Install from PyPI
+
+```bash
+pip install stepss-cg-studio
+```
+
+The CODEGEN binary is bundled in the package for Windows and Linux — no separate download needed. On macOS, the binary is not yet available; you can provide your own via Settings.
+
+### Install from source (for development)
 
 ```bash
 git clone https://github.com/SPS-L/stepss-cg-studio.git
 cd stepss-cg-studio
-pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
 
 ## Quick Start
 
 ```bash
-# Start the server
-python server/app.py
-
-# Open in browser
-# http://localhost:8765
+cg-studio
 ```
 
-On Windows, double-click `run.bat`. On Linux/macOS, run `./run.sh`.
+This starts the local server and opens your browser to the editor at `http://localhost:8765`. That's it.
+
+You can also run it as a Python module:
+
+```bash
+python -m cg_studio
+```
+
+### CLI options
+
+```bash
+cg-studio --port 9000        # use a different port
+cg-studio --host 0.0.0.0     # allow network access
+cg-studio --no-browser        # start server without opening browser
+```
 
 ### Building a model
 
@@ -85,38 +103,38 @@ On Windows, double-click `run.bat`. On Linux/macOS, run `./run.sh`.
 
 ```
 stepss-cg-studio/
-├── server/
-│   ├── app.py              # FastAPI server & API endpoints
-│   ├── dsl_parser.py       # DSL .txt → ModelProject dict
-│   ├── dsl_emitter.py      # ModelProject dict → DSL .txt
-│   └── config.json         # Runtime config (codegen path, host, port)
-├── frontend/
-│   ├── index.html          # Single-page app
-│   ├── css/style.css
-│   ├── js/
-│   │   ├── main.js         # App bootstrap, toolbar, file I/O
-│   │   ├── canvas.js       # Drawflow integration & auto-layout
-│   │   ├── store.js        # ModelProject state, topological sort, undo/redo
-│   │   ├── forms.js        # Metadata tables & block inspector
-│   │   ├── palette.js      # Block palette with search
-│   │   ├── dsl_preview.js  # Live DSL preview (CodeMirror)
-│   │   └── api.js          # Backend API wrappers
-│   └── blocks.json         # Block catalogue (51 blocks, extend here)
-├── examples/               # Example .cgproj project files
-├── tests/                  # Pytest test suite (~75 tests)
-├── docs/                   # Design documents
-├── requirements.txt
-├── run.bat                 # Windows launcher
-└── run.sh                  # Linux/macOS launcher
+├── pyproject.toml              # Package config, dependencies, entry point
+├── src/cg_studio/
+│   ├── __init__.py             # Package version
+│   ├── __main__.py             # python -m cg_studio support
+│   ├── cli.py                  # CLI entry point (cg-studio command)
+│   ├── config.py               # Platform-aware config & codegen resolution
+│   ├── app.py                  # FastAPI server & API endpoints
+│   ├── dsl_parser.py           # DSL .txt → ModelProject dict
+│   ├── dsl_emitter.py          # ModelProject dict → DSL .txt
+│   ├── bin/                    # Bundled CODEGEN binaries
+│   └── frontend/               # Static web assets (no build step)
+│       ├── index.html
+│       ├── css/style.css
+│       ├── js/                 # Vanilla JS modules
+│       └── blocks.json         # Block catalogue (51 blocks, extend here)
+├── tests/                      # Pytest test suite (~80 tests)
+├── examples/                   # Example .cgproj project files
+├── docs/                       # Design documents
+├── run.bat                     # Windows dev launcher
+└── run.sh                      # Linux/macOS dev launcher
 ```
 
 ## Adding New Blocks
 
-Edit `frontend/blocks.json` — add a single JSON entry with the block name, ports, argument schema, DSL line templates, and category. No JavaScript or Python changes required.
+Edit `src/cg_studio/frontend/blocks.json` — add a single JSON entry with the block name, ports, argument schema, DSL line templates, and category. No JavaScript or Python changes required.
 
 ## Running Tests
 
 ```bash
+# Install with dev dependencies
+pip install -e ".[dev]"
+
 # Run all tests
 pytest tests/ -v
 
@@ -133,11 +151,15 @@ CI runs pytest on Python 3.10–3.12 via GitHub Actions.
 
 Access via the gear icon in the toolbar:
 
-- **Codegen binary path** — full path to the `codegen` executable (default: `codegen` on system PATH)
+- **Codegen binary path** — path to the `codegen` executable (default: bundled binary)
 - **Server host** — change to `0.0.0.0` for network access (default: `127.0.0.1`)
 - **Server port** — HTTP port (default: `8765`)
 
-Settings are stored in `server/config.json` and also editable via the REST API at `/docs`.
+Settings are stored in a platform-specific config directory:
+- **Windows:** `%LOCALAPPDATA%\cg-studio\config.json`
+- **Linux/macOS:** `~/.config/cg-studio/config.json`
+
+Also editable via the REST API at `http://localhost:8765/docs`.
 
 ## Documentation
 
