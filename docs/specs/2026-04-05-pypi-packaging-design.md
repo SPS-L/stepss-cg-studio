@@ -65,7 +65,8 @@ stepss-cg-studio/
 │       ├── config.py            # platform-aware config/workspace dir resolution
 │       ├── bin/                  # bundled CODEGEN binaries
 │       │   ├── codegen.exe      # Windows (included only in win_amd64 wheel)
-│       │   └── codegen          # Linux (included only in manylinux wheel)
+│       │   ├── codegen          # Linux (included only in manylinux wheel)
+│       │   └── .gitkeep         # macOS: no binary yet, dir exists for future use
 │       └── frontend/            # all static assets (moved from frontend/)
 │           ├── index.html
 │           ├── css/
@@ -131,7 +132,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://stepss.sps-lab.org/developer/cg-studio/"
+Homepage = "https://stepss.sps-lab.org/"
 Documentation = "https://stepss.sps-lab.org/developer/cg-studio/"
 Repository = "https://github.com/SPS-L/stepss-cg-studio"
 Issues = "https://github.com/SPS-L/stepss-cg-studio/issues"
@@ -220,7 +221,11 @@ When the app needs to invoke CODEGEN, resolve the binary path in this order:
 1. **User override** — if `config.json` has `codegen_path` set to anything other than `"bundled"`, use that value as-is
 2. **Bundled binary** — locate `cg_studio/bin/codegen(.exe)` via `importlib.resources`
 3. **System PATH** — fall back to `shutil.which("codegen")`
-4. **Not found** — return a clear error: "CODEGEN binary not found. Install stepss-cg-studio with pip or set the path in Settings."
+4. **Not found** — return a platform-aware warning:
+   - **macOS:** "CODEGEN binary is not yet available for macOS. Please provide your own binary via Settings (gear icon) > Codegen binary path."
+   - **Windows/Linux:** "CODEGEN binary not found. Reinstall stepss-cg-studio with pip or set the path in Settings."
+   
+   In both cases, the rest of the app works normally (editing, saving, exporting DSL). Only the "Run Codegen" button is disabled, with a tooltip explaining why.
 
 ```python
 import importlib.resources
@@ -396,6 +401,8 @@ jobs:
             wheel_plat: win_amd64
           - os: ubuntu-latest
             wheel_plat: manylinux_2_17_x86_64
+          - os: macos-latest
+            wheel_plat: macosx_11_0_arm64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -489,7 +496,7 @@ pause
 
 The following are explicitly **not** part of this work:
 
-- **macOS support** — no CODEGEN binary for macOS exists today. macOS users can install the pure-Python sdist and provide their own CODEGEN binary via Settings.
+- **macOS CODEGEN binary** — no CODEGEN binary for macOS exists yet. The macOS wheel is distributed without a bundled binary. The app runs normally but disables "Run Codegen" with a warning prompting users to provide their own binary via Settings. When the macOS binary becomes available, it will be added to the macOS wheel with no app changes needed.
 - **Auto-update mechanism** — users upgrade via `pip install --upgrade`.
 - **Standalone executables** (PyInstaller/Nuitka) — potential future enhancement, not in scope.
 - **Docker packaging** — not in scope.
