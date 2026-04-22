@@ -613,14 +613,15 @@
   "inlim": {
     "label": "Input Limiter",
     "category": "Limiters",
-    "description": "Limit applied on the input side (anti-windup variant)",
+    "description": "Integrator with non-windup limits: T\u00b7dy/dt = x, clamped to [lo, hi]",
     "inputs": ["x"],
     "outputs": ["y"],
     "color": "#d97706",
-    "dsl_lines": ["{{input}}", "{{output}}", "{{lo}}", "{{hi}}"],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{T}}", "{{lo}}", "{{hi}}"],
     "args": [
-      {"name": "lo", "label": "Lower limit", "type": "expr", "default": "0."},
-      {"name": "hi", "label": "Upper limit", "type": "expr", "default": "1."}
+      {"name": "T",  "label": "Time constant T", "type": "expr", "default": "1."},
+      {"name": "lo", "label": "Lower limit",     "type": "expr", "default": "0."},
+      {"name": "hi", "label": "Upper limit",     "type": "expr", "default": "1."}
     ]
   },
   "invlim": {
@@ -881,44 +882,92 @@
     ]
   },
   "pwlin3": {
-    "label": "Piecewise Linear (3 seg.)",
+    "label": "Piecewise Linear (3 breakpoints)",
     "category": "Nonlinear",
-    "description": "Piecewise-linear function \u2014 3 segments",
+    "description": "Piecewise-linear function defined by 3 (x, y) breakpoints.",
     "inputs": ["x"],
     "outputs": ["y"],
     "color": "#be185d",
-    "dsl_lines": ["{{input}}", "{{output}}"],
-    "args": []
+    "dsl_lines": [
+      "{{input}}", "{{output}}",
+      "{{x1}}", "{{y1}}",
+      "{{x2}}", "{{y2}}",
+      "{{x3}}", "{{y3}}"
+    ],
+    "args": [
+      {"name": "x1"}, {"name": "y1"},
+      {"name": "x2"}, {"name": "y2"},
+      {"name": "x3"}, {"name": "y3"}
+    ]
   },
   "pwlin4": {
-    "label": "Piecewise Linear (4 seg.)",
+    "label": "Piecewise Linear (4 breakpoints)",
     "category": "Nonlinear",
-    "description": "Piecewise-linear function \u2014 4 segments",
+    "description": "Piecewise-linear function defined by 4 (x, y) breakpoints.",
     "inputs": ["x"],
     "outputs": ["y"],
     "color": "#be185d",
-    "dsl_lines": ["{{input}}", "{{output}}"],
-    "args": []
+    "dsl_lines": [
+      "{{input}}", "{{output}}",
+      "{{x1}}", "{{y1}}",
+      "{{x2}}", "{{y2}}",
+      "{{x3}}", "{{y3}}",
+      "{{x4}}", "{{y4}}"
+    ],
+    "args": [
+      {"name": "x1"}, {"name": "y1"},
+      {"name": "x2"}, {"name": "y2"},
+      {"name": "x3"}, {"name": "y3"},
+      {"name": "x4"}, {"name": "y4"}
+    ]
   },
   "pwlin5": {
-    "label": "Piecewise Linear (5 seg.)",
+    "label": "Piecewise Linear (5 breakpoints)",
     "category": "Nonlinear",
-    "description": "Piecewise-linear function \u2014 5 segments",
+    "description": "Piecewise-linear function defined by 5 (x, y) breakpoints.",
     "inputs": ["x"],
     "outputs": ["y"],
     "color": "#be185d",
-    "dsl_lines": ["{{input}}", "{{output}}"],
-    "args": []
+    "dsl_lines": [
+      "{{input}}", "{{output}}",
+      "{{x1}}", "{{y1}}",
+      "{{x2}}", "{{y2}}",
+      "{{x3}}", "{{y3}}",
+      "{{x4}}", "{{y4}}",
+      "{{x5}}", "{{y5}}"
+    ],
+    "args": [
+      {"name": "x1"}, {"name": "y1"},
+      {"name": "x2"}, {"name": "y2"},
+      {"name": "x3"}, {"name": "y3"},
+      {"name": "x4"}, {"name": "y4"},
+      {"name": "x5"}, {"name": "y5"}
+    ]
   },
   "pwlin6": {
-    "label": "Piecewise Linear (6 seg.)",
+    "label": "Piecewise Linear (6 breakpoints)",
     "category": "Nonlinear",
-    "description": "Piecewise-linear function \u2014 6 segments",
+    "description": "Piecewise-linear function defined by 6 (x, y) breakpoints.",
     "inputs": ["x"],
     "outputs": ["y"],
     "color": "#be185d",
-    "dsl_lines": ["{{input}}", "{{output}}"],
-    "args": []
+    "dsl_lines": [
+      "{{input}}", "{{output}}",
+      "{{x1}}", "{{y1}}",
+      "{{x2}}", "{{y2}}",
+      "{{x3}}", "{{y3}}",
+      "{{x4}}", "{{y4}}",
+      "{{x5}}", "{{y5}}",
+      "{{x6}}", "{{y6}}"
+    ],
+    "args": [
+      {"name": "x1"}, {"name": "y1"},
+      {"name": "x2"}, {"name": "y2"},
+      {"name": "x3"}, {"name": "y3"},
+      {"name": "x4"}, {"name": "y4"},
+      {"name": "x5"}, {"name": "y5"},
+      {"name": "x6"}, {"name": "y6"}
+    ]
   },
   "timer1": {
     "label": "Timer (1 threshold)",
