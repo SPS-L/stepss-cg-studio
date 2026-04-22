@@ -52,6 +52,18 @@ MANDATORY_OUTPUTS: dict[str, list[str]] = {
     "twop": ["ix1", "iy1", "ix2", "iy2"],
 }
 
+# Input-state signals per model type: the optional-to-use [name] references
+# available as sources in a user model. Distinct from RAMSES_INPUTS above,
+# which tracks reserved names that cannot be used as internal-state names
+# (and therefore also lists output names like vf/tm).
+# NOTE: exc does NOT include `if` (the user guide incorrectly lists it).
+RAMSES_INPUT_STATES: dict[str, list[str]] = {
+    "exc":  ["v", "p", "q", "omega"],
+    "tor":  ["p", "omega"],
+    "inj":  ["vx", "vy", "omega"],
+    "twop": ["vx1", "vy1", "vx2", "vy2", "omega1", "omega2"],
+}
+
 # Regex to detect numbered input templates: {{input1}}, {{input2}}, ...
 _INPUT_N_RE = re.compile(r"^\{\{input(\d+)\}\}$")
 

@@ -1,0 +1,46 @@
+tor
+TGOV1D
+
+%data
+
+R
+T1
+VMAX
+VMIN
+T2
+T3
+Dt
+
+%parameters
+
+C   =  [tm]*{R}
+
+%states
+
+dp1  = [tm]
+dp2  = [tm]
+Pm   = [tm]
+
+%observables
+
+Pm
+
+%models
+
+& algeq
+{R}*[dp1]-{C}+[omega]-1.d0
+& tf1plim
+dp1
+dp2
+1.
+{T1}
+{VMIN}
+{VMAX}
+& tf1p1z
+dp2
+Pm
+1.
+{T2}
+{T3}
+& algeq
+[tm]*[omega]+{Dt}*([omega]-1.d0)-[Pm]

@@ -203,6 +203,29 @@ def _roundtrip(text: str) -> tuple[dict, str]:
     return project, emitted
 
 
+def test_emit_prefixes_bang_on_plain_comments():
+    """Inspector comments typed as plain text should emit as DSL comments,
+    i.e. get a leading `!`. Already-prefixed comments pass through unchanged."""
+    project = {
+        "modelType": "exc", "modelName": "m",
+        "data": [], "parameters": [], "states": [], "observables": [],
+        "blocks": [
+            {"blockType": "algeq", "comment": "my plain comment",
+             "args": {"expr": "[x]-1"}, "inputStates": [], "outputState": ""},
+            {"blockType": "algeq", "comment": "! already prefixed",
+             "args": {"expr": "[y]-2"}, "inputStates": [], "outputState": ""},
+            {"blockType": "algeq", "comment": "",
+             "args": {"expr": "[z]-3"}, "inputStates": [], "outputState": ""},
+        ],
+    }
+    dsl = emit_dsl(project)
+    lines = dsl.splitlines()
+    header_lines = [l for l in lines if l.startswith("& algeq")]
+    assert header_lines[0] == "& algeq  ! my plain comment"
+    assert header_lines[1] == "& algeq  ! already prefixed"
+    assert header_lines[2] == "& algeq"
+
+
 # ---- Parsing tests ----------------------------------------------------------
 
 def test_parse_model_type_name():

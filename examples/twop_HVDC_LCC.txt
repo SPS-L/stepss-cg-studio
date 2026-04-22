@@ -1,0 +1,147 @@
+twop
+HVDC_LCC
+
+%data
+
+p          ! number of poles (1 or 2)
+rec_ctl    ! rectifier control : 1= current control, 2= power control,                       -1= alpha min control,      3=blocked (shut down)
+inv_ctl    ! inverter control  : 1= voltage control, 2= gamma control, -2= gamma min control,-1= reduced current control,3=blocked (shut down)
+Br         ! number of bridges in series in rectifier
+Bi         ! number of bridges in series in inverter
+Er         ! phase-to-phase open-circuit voltage (kV) on DC side of rectifier transformer with 1 pu voltage on AC side
+Ei         ! phase-to-phase open-circuit voltage (kV) on DC side of inverter transformer with 1 pu voltage on AC side
+Rcr        ! rectifier commutating resistance per bridge (in ohm)
+Xcr        ! rectifier commutating reactance per bridge (in ohm)
+Rci        ! inverter commutating resistance per bridge (in ohm)
+Xci        ! inverter commutating reactance per bridge (in ohm)
+RL         ! DC line series resistance (ohm)
+Rcomp      ! compounding resistance (voltage control by inverter) (ohm)
+Tp         ! time constant of power control (s); not used if current is controlled
+Idset      ! initial value (and setpoint if rec_ctl=1) of DC current (kA)
+nr         ! initial rectifier transformer ratio(pu/pu)
+ni         ! initial inverter transformer ratio (pu/pu) dIdt
+
+
+%parameters
+
+Pset = -([vx1]*[ix1]+[vy1]*[iy1])*sbase1    ! initial rectifier active power (and power setpoint) (MW)
+Vdr0 = {Pset}/({p}*{Idset})          ! initial rectifier DC voltage (kV)
+alpha0 = dacos( ({nr}/(1.3504745*{Er}*dsqrt([vx1]**2+[vy1]**2))) * (({Vdr0}/{Br})+(0.9549297*{Xcr}+2*{Rcr})*{Idset}) )    ! initial firing angle
+mur0 = dacos( dcos({alpha0}) - 1.4142136*{Xcr}*{nr}*{Idset}/(dsqrt([vx1]**2+[vy1]**2)*{Er})) - {alpha0}   ! initial overlap firing angle (rad)
+Qhvdc1 = {Pset}* (2.d0*{mur0}+dsin(2*{alpha0})-dsin(2d0*({mur0}+{alpha0})))/(dcos(2.d0*{alpha0})-dcos(2d0*({mur0}+{alpha0})))     ! initial reactive power consumption of rectifier (Mvar)
+B1 = ({Qhvdc1}/sbase1-[vx1]*[iy1]+[vy1]*[ix1])/([vx1]**2+[vy1]**2)     ! shunt susceptance to match reactive power on rectifier side (pu, base sbase1)
+Vdi0 = {Vdr0}-{RL}*{Idset}         ! initial inverter DC voltage (kV)
+gamma0 = dacos( ({ni}/(1.3504745*{Ei}*dsqrt([vx2]**2+[vy2]**2))) * (({Vdi0}/{Bi})+(0.9549297*{Xci}+2*{Rci})*{Idset}) )    ! initial extinction angle
+mui0 = dacos( dcos({gamma0}) - 1.4142136*{Xci}*{ni}*{Idset}/(dsqrt([vx2]**2+[vy2]**2)*{Ei})) - {gamma0}   ! initial overlap extinction angle (rad)
+P2in = {p}*{Vdi0}*{Idset}        ! initial inverter active power (MW)
+G2 = ({P2in}/sbase2-[vx2]*[ix2]-[vy2]*[iy2])/dsqrt([vx2]**2+[vy2]**2)     ! shunt conductance to match active power on inverter side (pu)
+Qhvdc2 = {P2in}* (2.d0*{mui0}+dsin(2*{gamma0})-dsin(2d0*({mui0}+{gamma0})))/(dcos(2.d0*{gamma0})-dcos(2d0*({mui0}+{gamma0})))     ! initial reactive power consumption of inverter (Mvar)
+B2 = ({Qhvdc2}/sbase2-[vx2]*[iy2]+[vy2]*[ix2])/([vx2]**2+[vy2]**2)     ! shunt susceptance to match reactive power on inverter side (pu)
+Vset = {Vdi0}+{Rcomp}*{Idset}   ! voltage setpoint of inverter (kV)
+alphamin = 0.d0  ! minimum firing angle; this parameter is set by HVDC_LIM (rad)
+Idred = 0.d0 ! reduced DC current imposed when inverter controls current; this parameter is set by HVDC_LIM (kA)
+gammamin = 0.d0 ! minimum extinction angle; this parameter is set by HVDC_LIM (rad)
+Td = 0.02   ! artifical time constant to delay terminal voltages
+
+%states
+
+Vdr = {Vdr0}             ! rectifier DC voltage (kV)
+alpha = {alpha0}         ! firing angle (rad)
+mur = {mur0}             ! overlap firing angle (rad)
+Id = {Idset}             ! DC current (kA)
+Vdi = {Vdi0}             ! inverter DC voltage (kV)
+gamma = {gamma0}         ! extinction angle (rad)
+mui = {mui0}             ! overlap extinction angle (rad)
+Ides = {Idset}           ! DC current desired (kA)
+Iord = {Idset}           ! DC current order (kA)
+P1 = (-[vx1]*[ix1]-[vy1]*[iy1])*sbase1   ! active power entering the link at rectifier end (pu)
+Q1 = ([vx1]*[iy1]-[vy1]*[ix1])*sbase1    ! reactive power entering the link at rectifier end (pu)
+P2 = ([vx2]*[ix2]+[vy2]*[iy2])*sbase2    ! active power exiting the link at inverter end (pu)
+Q2 = ([vx2]*[iy2]-[vy2]*[ix2])*sbase2    ! reactive power entering the link at rectifier end (pu)
+V1 = dsqrt([vx1]**2+[vy1]**2)
+V1d = dsqrt([vx1]**2+[vy1]**2)
+V2 = dsqrt([vx2]**2+[vy2]**2)
+V2d = dsqrt([vx2]**2+[vy2]**2)
+alphad = {alpha0}*57.2957795
+gammad = {gamma0}*57.2957795
+
+
+%observables
+
+Vdr
+alphad
+mur
+Vdi
+gammad
+mui
+Ides
+Iord
+Id
+P1
+Q1
+P2
+Q2
+Pset
+
+%models
+
+& algeq          ! Vdr - Eq. (1)
+[Vdr] - {Br}*( 1.3504745*[V1d]*{Er}*dcos([alpha])/{nr} - (0.9549297*{Xcr}+2*{Rcr})*[Id] )
+& algeq          ! mu rectifier - Eq. (2)
+dcos([alpha]+[mur]) - dcos([alpha]) + 1.4142136*{Xcr}*{nr}*[Id]/(max([V1d],1.d-03)*{Er})
+& algeq          ! ix1 rectifier - Eq.(3)
+{B1}*[vy1]-([vx1]+[vy1]*(2*[mur]+dsin(2*[alpha])-dsin(2*([mur]+[alpha])))/max((dcos(2*[alpha])-dcos(2*([mur]+[alpha]))),1d-03))*{p}*[Vdr]*[Id]/(sbase1*max([V1d]**2,1d-06)) - [ix1]
+& algeq          ! iy1 rectifier - Eq. (4)
+-{B1}*[vx1]-([vy1]-[vx1]*(2*[mur]+dsin(2*[alpha])-dsin(2*([mur]+[alpha])))/max((dcos(2*[alpha])-dcos(2*([mur]+[alpha]))),1d-03))*{p}*[Vdr]*[Id]/(sbase1*max([V1d]**2,1d-06)) - [iy1]
+& algeq          ! Vdi - Eq. (5)
+[Vdi] - {Bi}*( 1.3504745*[V2d]*{Ei}*dcos([gamma])/{ni} - (0.9549297*{Xci}+2*{Rci})*[Id] )
+& algeq          ! mu inverter - Eq. (6)
+dcos([gamma]+[mui]) - dcos([gamma]) + 1.4142136*{Xci}*{ni}*[Id]/(max([V2d],1.d-03)*{Er})
+& algeq          ! ix2 inverter - Eq.(7)
+-{G2}*[vx2]+{B2}*[vy2]+([vx2]-[vy2]*(2*[mui]+dsin(2*[gamma])-dsin(2*([mui]+[gamma])))/max((dcos(2*[gamma])-dcos(2*([mui]+[gamma]))),1d-03))*{p}*[Vdi]*[Id]/(sbase2*max([V2d]**2,1d-06)) - [ix2]
+& algeq          ! iy2 inverter - Eq.(8)
+-{B2}*[vx2]-{G2}*[vy2]+([vy2]+[vx2]*(2*[mui]+dsin(2*[gamma])-dsin(2*([mui]+[gamma])))/max((dcos(2*[gamma])-dcos(2*([mui]+[gamma]))),1d-03))*{p}*[Vdi]*[Id]/(sbase2*max([V2d]**2,1d-06)) - [iy2]
+& algeq          ! DC link - Eq. (9)
+[Vdr]-[Vdi]-{RL}*[Id]
+
+& algeq          ! computation of Ides (set << 0 when DC current no longer controlled; this will set Iord to zero)
+(equal({rec_ctl},1.d0)*{Idset}) +(equal({rec_ctl},2.d0)*({Pset}/max([Vdr],1d-02))) -(equal({rec_ctl},3.d0)*50.d0) -(equal({rec_ctl},-1.d0)*50.d0) -[Ides]
+& tf1plim       ! time constant to obtain Iord from Ides
+Ides
+Iord
+1.d0
+Tp
+0.d0
+9999.d0
+
+& algeq          ! rectifier : current order, min firing angle, zero DC current
+equal({rec_ctl},1.d0)*([Iord]-[Id]) +equal({rec_ctl},2.d0)*([Iord]-[Id]) +equal({rec_ctl},-1d0)*({alphamin}-[alpha]) +equal({rec_ctl},3.d0)*[Id]
+& algeq          ! inverter : voltage setpoint, specified extinc. angle, min extinc. angle, gamma=90 deg, reduced DC current
+equal({inv_ctl},1.d0)*([Vdi]+{Rcomp}*[Id]-{Vset}) +equal({inv_ctl},2.d0)*({gamma0}-[gamma]) +equal({inv_ctl},-2d0)*({gammamin}-[gamma]) +equal({inv_ctl},-1d0)*({Idred}-[Id])+ equal({inv_ctl},3.d0)*(1.570796327-[gamma])
+
+& algeq          ! AC voltage at bus 1
+dsqrt([vx1]**2+[vy1]**2) - [V1]
+& tf1p           ! time constant Td applied to AC voltage at bus 1
+V1
+V1d
+1.
+Td
+& algeq          ! AC voltage at bus 2
+dsqrt([vx2]**2+[vy2]**2) - [V2]
+& tf1p           ! time constant Td applied to AC voltage at bus 2
+V2
+V2d
+1.
+Td
+& algeq          ! observable P1
+(-[vx1]*[ix1]-[vy1]*[iy1])*sbase1-[P1]
+& algeq          ! observable Q1
+( [vx1]*[iy1]-[vy1]*[ix1])*sbase1-[Q1]
+& algeq          ! observable P2
+([vx2]*[ix2]+[vy2]*[iy2])*sbase2-[P2]
+& algeq          ! observable Q2
+([vx2]*[iy2]-[vy2]*[ix2])*sbase2-[Q2]
+& algeq          ! alpha degrees
+[alphad]-[alpha]*57.2957795
+& algeq          ! gamma degrees
+[gammad]-[gamma]*57.2957795

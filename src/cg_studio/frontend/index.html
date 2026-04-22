@@ -53,13 +53,15 @@
       <button class="icon-btn" id="btn-redo" title="Redo (Ctrl+Y)">&#8618;</button>
       <button class="icon-btn" id="btn-del"  title="Delete selected (Del)">&#128465;</button>
       <span class="sep"></span>
-      <button class="icon-btn" id="btn-fit"  title="Fit to view">&#8861;</button>
+      <button class="icon-btn" id="btn-fit"   title="Fit to view">&#8861;</button>
+      <button class="icon-btn" id="btn-check" title="Check model for issues">&#10003;</button>
       <span class="sep"></span>
       <span id="canvas-status" class="muted"></span>
     </div>
     <div id="drawflow-wrap">
       <div id="drawflow"></div>
     </div>
+    <div id="split-meta" class="splitter h-splitter" title="Drag to resize"></div>
     <div id="meta-panel">
       <div id="meta-tabs">
         <button class="meta-tab active" data-tab="data">%data</button>
@@ -76,6 +78,7 @@
     </div>
   </div>
 
+  <div id="split-right" class="splitter v-splitter" title="Drag to resize"></div>
   <aside id="right-panel">
     <div id="inspector-wrap">
       <div id="inspector-title">Select a block to inspect</div>
@@ -87,6 +90,13 @@
         <button class="icon-btn" id="btn-copy-dsl" title="Copy to clipboard">&#8856;</button>
       </div>
       <pre id="dsl-preview-content"></pre>
+    </div>
+    <div id="issues-wrap" class="collapsed">
+      <div id="issues-header" title="Click to expand/collapse">
+        <span class="ih-caret">&#9656;</span>
+        <span id="issues-title">Issues</span>
+      </div>
+      <div id="issues-list"></div>
     </div>
   </aside>
 </div>
@@ -139,10 +149,14 @@
 
 <script src="/js/store.js"></script>
 <script src="/js/api.js"></script>
+<script src="/js/project_adapter.js"></script>
+<script src="/js/validate.js"></script>
 <script src="/js/palette.js"></script>
 <script src="/js/forms.js"></script>
 <script src="/js/canvas.js"></script>
 <script src="/js/dsl_preview.js"></script>
+<script src="/js/resizers.js"></script>
+<script src="/js/check_model.js"></script>
 <script src="/js/main.js"></script>
 </body>
 </html>

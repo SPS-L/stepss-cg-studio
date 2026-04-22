@@ -10,3 +10,21 @@ build/
 .pytest_cache/
 *.tmp
 *.f90.generated
+
+# IDE / editor
+.idea
+.vscode
+
+# Tooling / local agent state
+.claude
+.mcp.json
+.ripgreprc
+
+# Shell init files accidentally dragged in via OneDrive sync
+.bash_profile
+.bashrc
+.gitconfig
+.gitmodules
+.profile
+.zprofile
+.zshrc

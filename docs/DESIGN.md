@@ -29,13 +29,14 @@ These decisions were made before implementation and drive the architecture throu
 
 | # | Question | Decision |
 |---|----------|----------|
-| 1 | **Deployment target** | Local Python server (`python server/app.py`) — enables live "Run Codegen" round-trip via subprocess |
-| 2 | **Primary users** | Both experienced developers and students — welcoming UI, but no-overhead for power users |
-| 3 | **Block wiring model** | Named wire / port approach — each block has named input/output ports; connecting writes the signal name |
-| 4 | **`%parameters` editing** | Structured table forms for all metadata sections; canvas only covers `%models` |
-| 5 | **Block catalogue extensibility** | `frontend/blocks.json` — add one JSON entry per new block; no code changes |
-| 6 | **`algeq` representation** | Special formula node on canvas with typed expression field and one implicit output port |
-| 7 | **Persistence format** | `.json` file containing full ModelProject state including canvas positions (lossless round-trip) |
+| 1 | **Deployment target** | Local Python server launched as `cg-studio` (or `python -m cg_studio`) — enables live "Run Codegen" round-trip via subprocess |
+| 2 | **Distribution** | PyPI wheel with bundled per-platform CODEGEN binary under `cg_studio/bin/`; user can override the binary path via Settings |
+| 3 | **Primary users** | Both experienced developers and students — welcoming UI, but no-overhead for power users |
+| 4 | **Block wiring model** | Named wire / port approach — each block has named input/output ports; connecting writes the signal name |
+| 5 | **`%parameters` editing** | Structured table forms for all metadata sections; canvas only covers `%models` |
+| 6 | **Block catalogue extensibility** | `cg_studio/frontend/blocks.json` — add one JSON entry per new block; no code changes |
+| 7 | **`algeq` representation** | Special formula node on canvas with typed expression field and one implicit output port |
+| 8 | **Persistence format** | `.json` file containing full ModelProject state including canvas positions (lossless round-trip) |
 
 ---
 
@@ -43,6 +44,7 @@ These decisions were made before implementation and drive the architecture throu
 
 | Layer | Technology | Rationale |
 |-------|------------|-----------|
+| Packaging | `pyproject.toml` (setuptools, PyPI-published) | `pip install stepss-cg-studio` → `cg-studio` console script |
 | Backend API | FastAPI + uvicorn | Fast async Python, auto-docs at `/docs`, zero config |
 | DSL parse/emit | Pure Python (`dsl_parser.py`, `dsl_emitter.py`) | No extra dependencies |
 | Canvas | [Drawflow](https://github.com/jerosoler/Drawflow) (MIT, CDN) | Drag-drop node graph, zero-build JS |
@@ -51,14 +53,15 @@ These decisions were made before implementation and drive the architecture throu
 | Right-panel forms | Vanilla JS + HTML5 | No framework overhead |
 | State store | In-memory JS object (`store.js`) | ModelProject JSON mirrors backend |
 | Tests | pytest + httpx | Standard Python test runner + FastAPI TestClient |
-| CI | GitHub Actions | Runs pytest on push/PR, Python 3.10–3.12 |
+| CI | GitHub Actions | Runs pytest on push/PR, Python 3.10–3.12; builds & publishes wheels on `v*` tags |
 
 ### Deployment
 
-- Run: `python server/app.py` → `http://localhost:8765`
-- Frontend served as static files from `frontend/`
-- `codegen` binary called via `subprocess`; path set in `server/config.json`
-- Platform: Windows / Linux / macOS (RAMSES itself runs on Windows 64-bit only)
+- Install: `pip install stepss-cg-studio` (or `pip install -e ".[dev]"` for a dev checkout).
+- Run: `cg-studio` (console script, installed by pip) — or `python -m cg_studio`. Default URL `http://localhost:8765`; the launcher auto-opens the browser unless `--no-browser` is passed.
+- The frontend (HTML/CSS/JS + `blocks.json`) ships inside the Python package at `cg_studio/frontend/` and is served from there via `importlib.resources`.
+- The CODEGEN binary is looked up in this order: (1) user override from Settings, (2) bundled binary inside the wheel at `cg_studio/bin/codegen[.exe]`, (3) `codegen` on `PATH`. Platform-specific wheels ship the matching binary; macOS currently has no bundled binary and requires the user to point Settings at a local build.
+- Platform: Windows / Linux / macOS (RAMSES itself runs on Windows 64-bit only).
 
 ---
 
@@ -68,39 +71,51 @@ These decisions were made before implementation and drive the architecture throu
 stepss-cg-studio/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml              # pytest on push/PR, Python 3.10–3.12
-├── server/
-│   ├── app.py                  # FastAPI server (entry point)
-│   ├── dsl_parser.py           # DSL .txt → ModelProject dict
-│   ├── dsl_emitter.py          # ModelProject dict → DSL .txt
-│   └── config.json             # codegen binary path, host, port
-├── frontend/
-│   ├── index.html              # Single-page app shell (3-column layout)
-│   ├── css/
-│   │   └── style.css           # Dark-theme stylesheet, Drawflow node overrides
-│   ├── js/
-│   │   ├── main.js             # App bootstrap + all toolbar button handlers
-│   │   ├── canvas.js           # Drawflow wrapper + Sugiyama auto-layout
-│   │   ├── palette.js          # Block palette (grouped, searchable, drag-enable)
-│   │   ├── forms.js            # Right-panel tabbed forms (meta/data/params/states/block)
-│   │   ├── dsl_preview.js      # Debounced live DSL preview with syntax highlight
-│   │   ├── store.js            # ModelProject state, Kahn topo-sort, undo/redo (60 steps)
-│   │   ├── api.js              # fetch() wrappers for all backend endpoints
-│   │   └── sidebar.js          # (unused) ES-module variant of palette.js
-│   └── blocks.json             # Block catalogue — extend here for new blocks
+│       └── ci.yml              # pytest on push/PR (3.10–3.12); build & PyPI publish on v* tags
+├── pyproject.toml              # Packaging, deps, console script, pytest config
+├── src/
+│   └── cg_studio/              # Installable Python package
+│       ├── __init__.py         # __version__
+│       ├── __main__.py         # `python -m cg_studio` → cli.main
+│       ├── cli.py              # `cg-studio` console script (argparse, uvicorn.run)
+│       ├── app.py              # FastAPI server + routes + static mount
+│       ├── config.py           # Platform config dir, codegen resolver, load/save
+│       ├── dsl_parser.py       # DSL .txt → ModelProject dict
+│       ├── dsl_emitter.py      # ModelProject dict → DSL .txt
+│       ├── bin/                # Bundled CODEGEN binaries (populated per-wheel)
+│       └── frontend/           # Packaged static assets
+│           ├── index.html
+│           ├── favicon.svg
+│           ├── blocks.json     # Block catalogue — extend here for new blocks
+│           ├── css/style.css
+│           └── js/
+│               ├── main.js              # Bootstrap, toolbar, shortcuts, Settings modal
+│               ├── canvas.js            # Drawflow wrapper + Sugiyama auto-layout
+│               ├── palette.js           # Grouped/searchable block palette
+│               ├── forms.js             # Metadata tables + block inspector
+│               ├── dsl_preview.js       # Debounced live DSL preview + regex highlight
+│               ├── store.js             # ModelProject, Kahn topo-sort, 60-step undo/redo
+│               ├── api.js               # fetch() wrappers for backend endpoints
+│               ├── project_adapter.js   # Parser-shape → Store-shape on DSL load
+│               └── sidebar.js           # (unused) ES-module variant of palette.js
 ├── examples/
 │   ├── ENTSOE_simp_exc.txt     # Example EXC DSL (PSS + AVR chain)
 │   └── ENTSOE_simp_tor.txt     # Example TOR DSL (governor chain)
 ├── tests/
-│   ├── __init__.py
-│   ├── test_parser.py          # 25 pytest tests (parse + emit + blocks.json)
-│   └── test_api.py             # FastAPI integration tests (TestClient, ~50 tests)
+│   ├── conftest.py             # Playwright fixture: starts uvicorn, yields base URL
+│   ├── test_parser.py          # 26 tests — parse, emit, round-trip, blocks.json, examples
+│   ├── test_api.py             # 41 tests — /blocks, /parse, /emit, /run_codegen, /config, /mandatory_outputs, static
+│   ├── test_config.py          # 12 tests — config dir / workspace / load / save / resolve_codegen
+│   ├── test_cli.py             # 3 tests — cli argparse + browser open behaviour
+│   └── test_e2e.py             # 10 Playwright tests — load, theme, palette, modals, shortcuts
 ├── docs/
-│   └── DESIGN.md               # This document
-├── requirements.txt
-├── run.bat                     # Windows launcher
-└── run.sh                      # Linux/macOS launcher
+│   ├── DESIGN.md               # This document
+│   └── specs/                  # Feature specs (e.g. PyPI packaging design/plan)
+├── run.bat                     # Windows launcher → `python -m cg_studio`
+└── run.sh                      # Linux/macOS launcher → `python -m cg_studio`
 ```
+
+There is **no top-level `server/` or `frontend/` directory and no `requirements.txt`** — the backend and the static frontend are both inside the installable `cg_studio` package, and all dependencies are declared in `pyproject.toml`.
 
 ---
 
@@ -173,7 +188,7 @@ The backend parser (`dsl_parser.py`) returns a different shape that the frontend
 | `states[].initExpr` | `states[].init` |
 | `errors[]` | (surfaced as toast on load, not persisted) |
 
-The translation happens in `main.js` during DSL load (`Api.parseDSL()` → `Store.set()`) and in `dsl_preview.js` during emit (`Store.get()` → `Api.emitDSL()`).
+The translation happens in `main.js` during DSL load (`Api.parseDSL()` → `Store.set()`) and in the `/emit` endpoint during emit. The backend's `POST /emit` handler calls `_normalise_project()` (`app.py`) which detects the frontend shape (presence of `model_type` instead of `modelType`) and maps `models[]`+`wires[]` → `blocks[]` with `inputStates` reconstructed from the wire list before delegating to `emit_dsl()`. The frontend therefore sends its native store shape to `/emit`; no client-side translation layer is needed.
 
 ### 5.2 Project File Format (`.json`)
 
@@ -187,7 +202,7 @@ File extension: `.json`. No envelope — the root object **is** the ModelProject
 
 ---
 
-## 6. Block Catalogue (`frontend/blocks.json`)
+## 6. Block Catalogue (`cg_studio/frontend/blocks.json`)
 
 ### Schema
 
@@ -233,15 +248,18 @@ File extension: `.json`. No envelope — the root object **is** the ModelProject
 | Category | Blocks |
 |----------|--------|
 | Algebraic | `algeq` |
-| Transfer Functions | `tf1p`, `tf1plim`, `tf1pvlim`, `tf1p1z`, `tf2p2z`, `tfder1p` |
+| Transfer Functions | `tf1p`, `tf1p1z`, `tf1plim`, `tf1pvlim`, `tf1p2lim`, `tf1p2limr`, `tf2p2z`, `tfder1p` |
 | Limiters | `lim`, `limvb`, `inlim`, `invlim` |
 | Controllers | `int`, `pictl`, `pictllim`, `pictl2lim`, `pictlieee` |
 | Min/Max/Gates | `max2v`, `max1v1c`, `min2v`, `min1v1c` |
-| Nonlinear | `abs`, `db`, `hyst`, `nint`, `swsign`, `switch2–5`, `pwlin3–6` |
-| Timers | `timer1–5`, `tsa` |
+| Nonlinear | `abs`, `db`, `hyst`, `nint`, `swsign`, `switch2`–`switch5`, `pwlin3`–`pwlin6` |
+| Timers | `timer1`–`timer5`, `timer11`, `timersc1`–`timersc6`, `tsa` |
+| Automata | `fsa` |
 | Power System | `f_inj`, `f_twop_bus1`, `f_twop_bus2` |
 
-**Total: 51 blocks.** Add new blocks by appending entries to `blocks.json` — no JavaScript or Python changes required.
+**Total: 52 blocks** (as counted from `blocks.json`). Add new blocks by appending entries to `blocks.json` — no JavaScript or Python changes required.
+
+The `fsa` (finite-state automaton) block uses a multi-line free-form body (`{{fsa_body}}`) rather than the fixed positional templates used by other blocks; its contents are the `#N` state / `->M` transition syntax documented in the codegen specification.
 
 ---
 
@@ -251,17 +269,19 @@ File extension: `.json`. No envelope — the root object **is** the ModelProject
 
 | Method | Path | Request body | Response |
 |--------|------|-------------|----------|
-| `GET` | `/` | — | `index.html` |
+| `GET` | `/` | — | `index.html` (SPA fallback via `StaticFiles(html=True)`) |
+| `GET` | `/favicon.ico` | — | `frontend/favicon.svg` (or 204) |
 | `GET` | `/blocks` | — | `blocks.json` catalogue |
+| `GET` | `/mandatory_outputs` | — | `{exc:[…], tor:[…], inj:[…], twop:[…]}` map from `dsl_parser.MANDATORY_OUTPUTS` |
 | `POST` | `/parse` | `{ "dsl_text": "..." }` | ModelProject JSON |
 | `POST` | `/emit` | `{ "project": {...} }` | `{ "dsl_text": "..." }` |
 | `POST` | `/run_codegen` | `{ "dsl_text": "...", "model_type": "...", "model_name": "..." }` | `{ "f90_text", "f90_filename", "stdout", "stderr", "returncode", "success" }` |
-| `GET` | `/config` | — | current `config.json` |
-| `PUT` | `/config` | partial config fields | updated `config.json` |
+| `GET` | `/config` | — | current config dict |
+| `PUT` | `/config` | any subset of `codegen_path`, `workspace_dir`, `host`, `port` | `{ "status": "ok", "config": {...} }` |
 
-Auto-generated Swagger UI at `http://localhost:8765/docs`.
+API routes are registered **before** the static-files mount so that unknown paths fall back to `index.html` (SPA routing) while known API paths stay intact. Auto-generated Swagger UI at `http://localhost:8765/docs`.
 
-### 7.2 DSL Parser (`server/dsl_parser.py`)
+### 7.2 DSL Parser (`cg_studio/dsl_parser.py`)
 
 **Entry point:** `parse_dsl(text: str) -> dict`
 
@@ -281,23 +301,24 @@ Parse sequence:
 - Maps each arg line to the corresponding `{{TOKEN}}` in `dsl_lines`, populating `inputStates`, `outputState`, and `args`
 - Unknown blocks: emit a warning to `errors[]`, skip to the next `&` line, preserve `rawArgLines`
 
-### 7.3 DSL Emitter (`server/dsl_emitter.py`)
+### 7.3 DSL Emitter (`cg_studio/dsl_emitter.py`)
 
 **Entry point:** `emit_dsl(project: dict) -> str`
 
 Emits sections in canonical order: header → `%data` → `%parameters` → `%states` → `%observables` → `%models`.
 
-For `%models`, blocks are emitted in the **list order** of `project["blocks"]`. The frontend's topological sort (Kahn's algorithm in `store.js`) must reorder this list before calling `/emit`.
+For `%models`, blocks are emitted in the **list order** of `project["blocks"]`. The frontend store does not currently reorder `models[]` using the topological sort before calling `/emit` (see §8.5 and §10.3) — block order therefore follows insertion / import order, and the user can shuffle it manually by deleting/recreating nodes if needed.
 
 For each block, the emitter reverse-maps `inputStates`/`outputState`/`args` back into the `dsl_lines` template sequence. Unknown blocks fall back to `rawArgLines`.
 
 ### 7.4 `codegen` Subprocess (`/run_codegen`)
 
-1. Write `dsl_text` to a temp file `<model_name>.txt` in a `tempfile.TemporaryDirectory()`
-2. Invoke: `codegen -t<path_to_dsl_file>`
-3. Read `<model_type>_<model_name>.f90` from the same temp dir
-4. Return `f90_text`, `stdout`, `stderr`, `returncode`
-5. On `FileNotFoundError` → HTTP 500 with instructions to set `codegen_path` in `config.json`
+1. Resolve the codegen binary via `config.resolve_codegen()` — user override → bundled binary under `cg_studio/bin/` → `codegen` on `PATH`. If none resolve, return HTTP 500 with a platform-aware hint (the macOS message tells the user to supply their own binary via Settings, since no macOS binary is bundled).
+2. Infer `model_type` / `model_name` from the first two non-empty DSL lines if the request did not supply them.
+3. Write `dsl_text` to a temp file `<model_name>.txt` in a `tempfile.TemporaryDirectory()` (cwd set to that directory so codegen writes its output there).
+4. Invoke `<codegen> -t<path_to_dsl_file>` with a 30-second timeout.
+5. Read `<model_type>_<model_name>.f90` from the temp dir.
+6. Return `f90_text`, `f90_filename`, `stdout`, `stderr`, `returncode`, and a `success` flag (`returncode == 0` *and* non-empty f90 text).
 
 ---
 
@@ -337,6 +358,7 @@ Three-column layout: left sidebar (palette), center column (canvas toolbar + Dra
 |--------|---------------|
 | `store.js` | Canonical `ModelProject` state; Kahn's topological sort; undo/redo ring buffer (60 steps); event bus for cross-module updates |
 | `api.js` | `fetch()` wrappers for all backend endpoints; error normalisation |
+| `project_adapter.js` | Converts backend `/parse` output → frontend store shape (catalogue-aware `models[]`, synthesized `wires[]`, preserved literal inputs). Also Node-testable. |
 | `canvas.js` | Drawflow initialisation; drag-from-sidebar; port connection → signal name assignment; Sugiyama auto-layout for DSL import |
 | `palette.js` | Renders block palette grouped by category; live search filter; drag-start handler |
 | `forms.js` | Right-panel tabs: model meta, data table, params table, states table, block props form |
@@ -346,11 +368,11 @@ Three-column layout: left sidebar (palette), center column (canvas toolbar + Dra
 
 ### 8.3 Canvas Interaction Model
 
-- **Drag from sidebar** → drop on canvas → Drawflow creates a node; `store.js` adds a block entry
-- **Connect output port → input port** → sets `inputStates[0]` of target block = `outputState` of source block; auto-generates state name `<blockType><id>` (e.g. `tf1p3`), editable in Block tab
-- **Click node (select)** → activates Block Inspector panel, renders output signal names and `args` form for that block (uses Drawflow's `nodeSelected` event)
-- **Right-click → Delete** → removes node, its wires, and the block from `store.js`
-- **Multi-input blocks** (`max2v`, `min2v`, `switch2`–`switch5`) render N left-side ports
+- **Drag from palette** → drop on canvas → Drawflow creates a node; `store.js` adds a `models[]` entry with auto-generated output signal names. The signal prefix is the first three alphabetic characters of the block key (`tf1plim` → `tfp`), with an incrementing numeric suffix chosen by `Store.freshSignal()` to avoid collisions.
+- **Connect output port → input port** → `store.js` appends a `wires[]` entry whose `signal_name` is the source block's output signal. Target `inputStates` are reconstructed from `wires[]` on `/emit` (inside `_normalise_project`); the store deliberately does *not* mirror them into `models[].inputs`.
+- **Click node (select)** → activates Block Inspector panel, renders editable output signal names and the `args` form (driven by `blocks.json.args[]`). Uses Drawflow's `nodeSelected` event.
+- **Delete key / toolbar Del** → removes the selected node, its incident wires, and the `models[]` entry from `store.js`.
+- **Multi-input blocks** (`max2v`, `min2v`, `switch2`–`switch5`) render N left-side ports; each port has its own `input_N` class and can be wired independently.
 
 ### 8.4 Signal Name Resolution
 
@@ -366,14 +388,16 @@ The emitter wraps RAMSES built-in variable names in `[...]` when it encounters t
 
 ### 8.5 Topological Sort (Kahn's Algorithm)
 
-Before `/emit` is called, `store.js` runs Kahn's algorithm over the block graph:
+`Store.topoSort()` runs Kahn's algorithm over the block graph:
 
-1. Build adjacency from `outputState → [blocks whose inputStates contain it]`
-2. Find all nodes with in-degree 0 (no unresolved inputs) → initial queue
-3. Drain queue, appending each block to the sorted list
-4. If the sorted list length < total blocks → cycle detected → error banner, `/emit` blocked
+1. Build adjacency directly from `wires[]` (`from_node → to_node`).
+2. Find all nodes with in-degree 0 → initial queue.
+3. Drain queue, appending each block `id` to the sorted list.
+4. If the sorted list length < total blocks → return `null` (cycle detected).
 
-`algeq` blocks that reference state X should ideally be placed **before** the block that produces X as output. Currently, the topological sort is purely wire-based — it does not parse `algeq` expressions to extract variable references. The `algeq` ordering constraint in §10.4 describes the intended behaviour, not the current implementation.
+**Current usage:** the sort result is consumed by `main._status()` on every store change to display either the "3 blocks, 2 wires" status or a red "⚠ Cycle detected" banner. It does **not** reorder `proj.models` before `/emit` — the emitter currently processes blocks in whatever order they appear in `proj.models`, and `_normalise_project` iterates the same order. If the user drops or loads blocks out of dependency order, the emitted DSL will reflect that order; fixing this to use the topo-sort result before emit is a known follow-up.
+
+The sort is purely wire-based — it does not parse `algeq` expressions to extract variable references, so the ordering constraint in §10.4 is only enforced for `algeq` outputs that are explicitly wired to their consumers.
 
 ### 8.6 Auto-layout (Sugiyama) on DSL Import
 
@@ -392,31 +416,33 @@ Feedback loops (e.g. integrators) are handled by identifying back-edges during D
 
 ## 9. Phase Roadmap
 
+All planned phases are complete; the table is kept as a historical record of what each phase delivered.
+
 | Phase | Status | Deliverable | Key files |
 |-------|--------|-------------|-----------|
-| **1** | ✅ **Done** | Backend: parser, emitter, API, blocks.json (51 blocks), tests, CI | `server/*.py`, `frontend/blocks.json`, `tests/test_parser.py`, `.github/workflows/ci.yml` |
-| **2** | ✅ **Done** | Full SPA: canvas (Drawflow), palette, live DSL preview, forms, toolbar, settings modal | `frontend/js/*.js`, `frontend/index.html`, `frontend/css/style.css` |
-| **3** | ✅ **Done** | Sugiyama auto-layout (in `canvas.js`), settings modal wired to `/config`, API integration tests | `tests/test_api.py`, `docs/DESIGN.md` |
-| **4** | ✅ **Done** | Project save/load (`.json`), DSL `.txt` import with Sugiyama auto-layout | `frontend/js/main.js` (save/load handlers, lines 76–98) |
-| **5** | ✅ **Done** | Run Codegen end-to-end: `.f90` preview modal, download, subprocess error display | `frontend/js/main.js` (lines 101–118), `server/app.py` |
-| **6** | ✅ **Done** | Polish: validation overlay (mandatory outputs), colour themes per model type, E2E tests | `frontend/js/main.js`, `tests/test_e2e.py`, `tests/conftest.py` |
+| **1** | ✅ Done | Backend: parser, emitter, FastAPI endpoints, `blocks.json` catalogue, parser tests, CI matrix | `src/cg_studio/{dsl_parser,dsl_emitter,app}.py`, `src/cg_studio/frontend/blocks.json`, `tests/test_parser.py`, `.github/workflows/ci.yml` |
+| **2** | ✅ Done | Full SPA: Drawflow canvas, palette, live DSL preview, metadata tables, block inspector, toolbar | `src/cg_studio/frontend/js/*.js`, `src/cg_studio/frontend/index.html`, `src/cg_studio/frontend/css/style.css` |
+| **3** | ✅ Done | Sugiyama auto-layout for DSL import, Settings modal wired to `GET/PUT /config`, API integration tests | `src/cg_studio/frontend/js/canvas.js` (`sugiyamaLayout`), `src/cg_studio/frontend/js/main.js` (settings handlers), `tests/test_api.py` |
+| **4** | ✅ Done | Project save/load (`.json`, lossless round-trip), DSL `.txt` import that triggers Sugiyama layout when no canvas metadata is present | `src/cg_studio/frontend/js/main.js` (file I/O handlers), `src/cg_studio/frontend/js/canvas.js` (`loadProject`) |
+| **5** | ✅ Done | Run Codegen end-to-end: resolver for user/bundled/PATH binary, `.f90` preview modal with download, subprocess error display | `src/cg_studio/frontend/js/main.js` (Run Codegen handler), `src/cg_studio/app.py` (`/run_codegen`), `src/cg_studio/config.py` (`resolve_codegen`) |
+| **6** | ✅ Done | Polish: mandatory-output validation modal, model-type colour themes, Playwright E2E suite | `src/cg_studio/frontend/js/main.js`, `tests/test_e2e.py`, `tests/conftest.py` |
+| **7** | ✅ Done | PyPI packaging: `src/` layout, `cg-studio` console script, bundled codegen binary per-platform, tag-triggered build + publish workflow | `pyproject.toml`, `src/cg_studio/cli.py`, `src/cg_studio/config.py` (`resolve_codegen`), `.github/workflows/ci.yml` (build / publish jobs) |
 
-### Completed Phases — Quick Start
+### Quick Start
 
 ```bash
-git clone https://github.com/SPS-L/stepss-cg-studio
-cd stepss-cg-studio
-pip install -r requirements.txt
-pytest tests/ -v          # ~75 tests (test_parser + test_api)
-python server/app.py      # → http://localhost:8765
+pip install stepss-cg-studio        # or: pip install -e ".[dev]" for a dev checkout
+cg-studio                           # auto-opens http://localhost:8765
+# Tests (dev checkout):
+pytest tests/ -v                    # 92 tests — parser, API, config, CLI, E2E (Playwright)
 ```
 
-Open `http://localhost:8765` — drag blocks from the palette, connect ports, fill in the metadata tables, then:
-- **Export DSL** → downloads `<model_name>.txt`
-- **▶ Run Codegen** → invokes the `codegen` binary, previews the `.f90`, offers download
-- **Save Project** → saves `<model_name>.json` (lossless round-trip)
-- **Load Project** → restores canvas + all metadata
-- **⚙ Settings** → set the `codegen` binary path without editing `config.json` by hand
+In the browser — drag blocks from the palette, connect ports, fill in the metadata tables, then:
+- **Export DSL** → downloads `<model_name>.txt` after validating mandatory outputs
+- **▶ Run Codegen** → invokes the resolved `codegen` binary, previews the `.f90`, offers download
+- **Save Project** → downloads `<model_name>.json` (lossless round-trip including canvas positions)
+- **Load Project / Load DSL** → restores a project, or parses a raw `.txt` and auto-lays it out
+- **⚙ Settings** → edit `codegen_path`, `host`, `port` (persisted to the platform config dir; see §12)
 
 ---
 
@@ -432,21 +458,22 @@ Implemented in `canvas.js` as `sugiyamaLayout(proj)`. The three-pass barycentric
 
 ### 10.3 Topological sort and cycle detection
 
-`store.js` runs Kahn's algorithm before every `/emit` call. A cycle (feedback loop in the model) does **not** crash the app — it triggers an error banner listing the involved block IDs and blocks the DSL export until resolved. Note: feedback loops are valid in RAMSES models (e.g. integrators in a control loop) and must be broken by declaring the fed-back signal as a `%state` with an explicit init expression — the UI should guide the user to do this.
+`Store.topoSort()` runs Kahn's algorithm on every store change (via `main._status()`) to decide whether to show "N blocks, M wires" or a red "⚠ Cycle detected" status banner. A cycle does **not** crash the app. The sort result is *not* currently fed back into `/emit`, so the emitter relies on the user (or the Sugiyama import step) to present blocks in a sensible order. Feedback loops are valid in RAMSES models (e.g. integrators in a control loop) and must be broken by declaring the fed-back signal as a `%state` with an explicit init expression — the UI does not yet guide the user through this.
 
 ### 10.4 `algeq` ordering constraint
 
-An `algeq` block that computes state `X` is an implicit equation. Its position in the `%models` list must precede the first block that uses `X` as an input. The topological sort treats `algeq` outputs like any other state output for ordering purposes.
+An `algeq` block that computes state `X` is an implicit equation. Its position in the `%models` list must precede the first block that uses `X` as an input. In the catalogue, `algeq` has a single `residual` output port, so when the user wires that port to a downstream block the topological sort in `store.js` orders it like any other block. However, the sort is purely **wire-based** — if an `algeq` references a state inside its free-text expression without a wire, the ordering constraint is not enforced automatically. See §8.5.
 
 ### 10.5 Frontend ↔ Backend model translation
 
 The backend parser (`dsl_parser.py`) returns a `ModelProject` with camelCase keys and a flat `blocks[]` array where wiring is encoded per-block (`inputStates`/`outputState`). The frontend store (`store.js`) uses snake_case keys, a separate `wires[]` array, and per-node `outputs[]`/`inputs[]` with Drawflow node IDs (`df_id`). See §5.1 for the full mapping table.
 
-The translation happens in two places:
-- **Load**: `main.js` calls `Api.parseDSL()` → receives backend shape → `Store.set()` (the frontend currently passes the parser output directly, so some field names may be inconsistent until a normalisation layer is added).
-- **Emit**: `dsl_preview.js` calls `Api.emitDSL(Store.get())` → the backend emitter reads from the project dict it receives.
+The translation happens in two symmetric places:
 
-This impedance mismatch means changes to the backend schema must be reflected in the frontend load/emit paths.
+- **Load**: `main.js` calls `Api.parseDSL()` → the backend returns the parser shape → `ProjectAdapter.parsedToFrontend(parsed, blocks)` (in `frontend/js/project_adapter.js`) rebuilds the store shape: `blocks[]` becomes `models[]` enriched with catalogue metadata (label/color/inputs/outputs) and `pos:{x:0,y:0}` to trigger Sugiyama layout; a synthetic `wires[]` is derived by matching each input slot to the first upstream block whose `outputState` equals that signal; unresolved literals (RAMSES inputs like `[omega]`, parameter refs like `{KE}`, state names with no producing block) are kept as plain strings in `models[i].inputs[j]`.
+- **Emit**: `dsl_preview.js` calls `Api.emitDSL(Store.get())`. The `/emit` handler calls `app._normalise_project()` which detects the shape (`model_type` vs `modelType`), seeds `inputStates[]` from `models[i].inputs[j]` literals, then lets `wires[]` entries override each targeted slot with the wire's `signal_name`, and finally invokes `emit_dsl()`.
+
+Schema changes must therefore be reflected in both `project_adapter.parsedToFrontend()` and `app._normalise_project()`, plus `store.js` and the forms if they add/remove fields.
 
 ### 10.6 RAMSES variable namespacing
 
@@ -458,22 +485,33 @@ RAMSES built-in input variables differ per model type (e.g. `exc` has `[v]`, `[o
 
 | Test type | Location | Count | Coverage |
 |-----------|----------|-------|----------|
-| Parser unit tests | `tests/test_parser.py` | 25 | Model type/name, all sections, block types, round-trip, `blocks.json` integrity, example files |
-| API integration tests | `tests/test_api.py` | 41 | All endpoints: `/blocks`, `/parse`, `/emit`, `/run_codegen`, `/config`, `/mandatory_outputs`, static serving |
-| Frontend E2E | `tests/test_e2e.py` | 10 | Playwright: app loading, theming, palette search, validation overlay, modals, keyboard shortcuts |
+| Parser / emitter unit tests | `tests/test_parser.py` | 26 | Model type/name, all sections, block types (exc/tor/inj/twop), round-trip, `blocks.json` integrity, example files |
+| API integration tests | `tests/test_api.py` | 41 | All endpoints via FastAPI `TestClient`: `/blocks`, `/parse`, `/emit`, `/run_codegen`, `/config`, `/mandatory_outputs`, static serving |
+| Config module tests | `tests/test_config.py` | 12 | Platform config dir, default workspace, `load`/`save_config`, `resolve_codegen` (user override / bundled / PATH / missing) |
+| CLI tests | `tests/test_cli.py` | 3 | `cg-studio` argparse: default browser open, `--no-browser`, `--port` override |
+| Project adapter (Node) | `tests/test_project_adapter.py` | 3 | Runs `project_adapter.js` under Node against real parser output — verifies DSL-load path without a browser |
+| Frontend E2E | `tests/test_e2e.py` | 11 | Playwright (chromium): app loading, theming, palette search, validation overlay, modals, keyboard shortcuts, DSL-file load round-trip |
 
-Run with: `pytest tests/ -v`
+**Total: 96 tests.** Run with: `pytest tests/ -v`. CI runs the entire suite on Python 3.10 / 3.11 / 3.12 against Ubuntu (the Playwright browsers are installed in the CI workflow; `node` is preinstalled on GitHub-hosted runners, so the adapter tests also run there).
 
 ---
 
 ## 12. Configuration
 
-`server/config.json`:
+Configuration is handled by `src/cg_studio/config.py`. There is **no config file inside the repository**; the runtime config lives in the platform's user config directory and is created with defaults on first run.
+
+| OS | Config path |
+|----|-------------|
+| Linux | `$XDG_CONFIG_HOME/cg-studio/config.json` (falls back to `~/.config/cg-studio/config.json`) |
+| macOS | `~/.config/cg-studio/config.json` (same XDG rule) |
+| Windows | `%LOCALAPPDATA%\cg-studio\config.json` (falls back to `~/AppData/Local/cg-studio/config.json`) |
+
+Default contents:
 
 ```json
 {
-  "codegen_path": "codegen",
-  "workspace_dir": "workspace",
+  "codegen_path": "bundled",
+  "workspace_dir": "<platform default>",
   "host": "127.0.0.1",
   "port": 8765
 }
@@ -481,12 +519,12 @@ Run with: `pytest tests/ -v`
 
 | Field | Default | Notes |
 |-------|---------|-------|
-| `codegen_path` | `"codegen"` | Full path to `codegen.exe` on Windows, or `codegen` if on `PATH` |
-| `workspace_dir` | `"workspace"` | Reserved for future persistent workspace |
-| `host` | `"127.0.0.1"` | Bind address; change to `"0.0.0.0"` for network access |
-| `port` | `8765` | HTTP port |
+| `codegen_path` | `"bundled"` | Sentinel that triggers the bundled-binary / PATH resolution chain in `resolve_codegen()`. Set to an absolute path to override. |
+| `workspace_dir` | `~/cg-studio-workspace` on Linux/macOS, `~/Documents/cg-studio-workspace` on Windows | Reserved for future persistent workspace |
+| `host` | `"127.0.0.1"` | Bind address; change to `"0.0.0.0"` for network access (restart required) |
+| `port` | `8765` | HTTP port (restart required) |
 
-Editable at runtime via `PUT /config` (Swagger UI at `/docs`) or the ⚙ Settings button in the UI.
+Editable at runtime via `PUT /config` (Swagger UI at `/docs`) or the ⚙ Settings button in the UI. `cli.py` also accepts `--host` / `--port` flags that override the config for a single run without persisting.
 
 ---
 

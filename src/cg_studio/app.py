@@ -43,7 +43,17 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from cg_studio.config import load_config as _load_config, save_config as _save_config, resolve_codegen as _resolve_codegen
-from cg_studio.dsl_parser import parse_dsl as _parse, MANDATORY_OUTPUTS
+from cg_studio.dsl_parser import (
+    parse_dsl as _parse,
+    MANDATORY_OUTPUTS,
+    RAMSES_INPUT_STATES,
+    RAMSES_INPUTS,
+)
+
+# Visual-only block types that represent RAMSES I/O pins. They have no DSL
+# footprint — the emitter skips them and relies on their wires to carry
+# bracketed state literals (e.g. "[omega]") into the real blocks' inputStates.
+_RAMSES_IO_TYPES = {"ramses_in", "ramses_out"}
 from cg_studio.dsl_emitter import emit_dsl as _emit
 
 # -- Paths -------------------------------------------------------------------
@@ -105,6 +115,23 @@ async def get_mandatory_outputs():
     return JSONResponse(content=MANDATORY_OUTPUTS)
 
 
+@app.get("/ramses_inputs")
+async def get_ramses_inputs():
+    """Return optional RAMSES input-state signal names per model type."""
+    return JSONResponse(content=RAMSES_INPUT_STATES)
+
+
+@app.get("/ramses_reserved")
+async def get_ramses_reserved():
+    """Return the full list of RAMSES-reserved state names per model type.
+
+    These include names that are NOT shown in the I/O palette but still
+    cannot be used as internal states (e.g. ``if`` on an exc) — algeq
+    blocks must treat them as literals, never promote them to outputs.
+    """
+    return JSONResponse(content=RAMSES_INPUTS)
+
+
 @app.post("/parse")
 async def parse_dsl(req: ParseRequest):
     """Parse CODEGEN DSL text -> ModelProject JSON."""
@@ -127,9 +154,19 @@ def _normalise_project(proj: dict) -> dict:
     wires = proj.get("wires", [])
     blocks = []
     for m in fe_models:
-        # Build inputStates from wires targeting this model
-        n_inputs = len(m.get("inputs", []))
-        input_states = [""] * n_inputs
+        # Visual-only I/O pins have no DSL footprint. The bracketed literal
+        # they carry on outgoing wires has already been propagated into
+        # downstream blocks' signal_name, so there is nothing to emit here.
+        if m.get("block_type") in _RAMSES_IO_TYPES:
+            continue
+        # Seed inputStates with any literal signals stored in models[i].inputs[j]
+        # (RAMSES inputs like "[omega]", parameter refs like "{KE}", or bare
+        # state names that have no upstream block — these are preserved at load
+        # time and have no corresponding wire). Wires then override each slot
+        # they target, so user-drawn connections win over stale literals.
+        stored_inputs = m.get("inputs", []) or []
+        n_inputs = len(stored_inputs)
+        input_states = [(v if isinstance(v, str) else "") for v in stored_inputs]
         for w in wires:
             if w.get("to_node") == m.get("id"):
                 port = w.get("to_port", "input_1")

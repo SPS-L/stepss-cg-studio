@@ -1,0 +1,85 @@
+inj
+vfd_load
+
+%data
+
+Dp         ! sensitivity of active power to frequency
+a1         ! proportion of type 1 in active power
+alpha1     ! exponent of type 1 in active power
+a2         ! proportion of type 2 in active power
+alpha2     ! exponent of type 2 in active power
+alpha3     ! exponent of type 3 in active power  (proportion = 1-a1-a2)
+Dq         ! sensitivity of reactive power to frequency
+b1         ! proportion of type 1 in reactive power
+beta1      ! exponent of type 1 in reactive power
+b2         ! proportion of type 2 in reactive power
+beta2      ! exponent of type 2 in reactive power
+beta3      ! exponent of type 3 in reactive power  (proportion = 1-b1-b2)
+Vinit      ! initial voltage at equivalent distribution bus. If zero: same as transmission voltage (r=1)
+Vlow       ! voltage below which the load behaves as a constant admittance (recommended : 0.5 - 0.7 pu)
+foption    ! set to 1 to use bus frequency; otherwise, the COI speed is used
+Tmes       ! small "measurement" time constant used to estimate bus frequency (see documentation of f_inj block; recommended : 0.10 s)
+
+%parameters
+
+Vo = equal({Vinit},0.d0)*dsqrt([vx]**2+[vy]**2) + {Vinit}                          ! initial voltage at equivalent distribution bus
+r =  dsqrt([vx]**2+[vy]**2)/{Vo}                                                   ! initial value of transformer ratio
+denomP = {a1}*{Vo}**{alpha1}+{a2}*{Vo}**{alpha2}+(1.d0-{a1}-{a2})*{Vo}**{alpha3}   ! denominator in model of active power
+denomQ = {b1}*{Vo}**{beta1}+{b2}*{Vo}**{beta2}+(1.d0-{b1}-{b2})*{Vo}**{beta3}      ! denominator in model of reactive power
+Po = -[vx]*[ix]-[vy]*[iy]                                                          ! initial (under Vo) active power 
+Qo =  [vx]*[iy]-[vy]*[ix]                                                          ! initial (under Vo) reactive power
+Vmin = max(1.d-01,{Vlow})                                                          ! Vmin must not be smaller than 0.1 pu
+Geq = {Po}*({a1}*{Vmin}**{alpha1}+{a2}*{Vmin}**{alpha2}+(1.d0-{a1}-{a2})*{Vmin}**{alpha3})/({denomP}*{Vmin}**2)  ! equivalent conductance used when V<Vmin
+Beq =-{Qo}*({b1}*{Vmin}**{beta1}+ {b2}*{Vmin}**{beta2}+ (1.d0-{b1}-{b2})*{Vmin}**{beta3}) /({denomQ}*{Vmin}**2)  ! equivalent susceptance used when V<Vmin
+
+%states
+
+Vreal = {Vo}      ! voltage at equivalent distribution bus
+V = {Vo}          ! Vreal slightly delayed
+P = {Po}          ! active power
+Q = {Qo}          ! reactive power
+fbus = 1.d0       ! bus frequency (not used if foption \= 1)
+df = 0.d0         ! frequency deviation
+u = 1             ! model switch: =1 if V> Vmin, =0 otherwise
+
+%observables
+
+P
+Q
+df
+u
+
+%models
+
+& f_inj
+fbus
+{Tmes}
+& algeq
+equal(1.d0,{foption})*([fbus]-1.d0) + (1.d0-equal(1.d0,{foption}))*([omega]-1.d0) - [df]
+& algeq         ! voltage at equivalent distribution bus = network voltage / trfo ratio
+dsqrt([vx]**2+[vy]**2)/{r}-[Vreal] 
+& tf1p          ! small time constant between the real voltage and the one used in the load model
+Vreal
+V
+1.
+0.003
+& pwlin4        ! determine if u=1 or u=0
+V
+u
+-1.d0
+0.d0
+{Vmin}
+0.d0
+{Vmin}
+1.d0
+2.d0
+1.d0
+& algeq         ! active power function of V, u and f
+[u]*({Po}*(1.d0+{Dp}*[df])*({a1}*[V]**{alpha1}+{a2}*[V]**{alpha2}+(1.d0-{a1}-{a2})*[V]**{alpha3})/{denomP}) + (1.d0-[u])*{Geq}*[V]**2 -[P]
+& algeq         ! reactive power function of V, u and f
+[u]*({Qo}*(1.d0+{Dq}*[df])*({b1}*[V]**{beta1} +{b2}*[V]**{beta2} +(1.d0-{b1}-{b2})*[V]**{beta3}) /{denomQ}) - (1.d0-[u])*{Beq}*[V]**2 -[Q]
+& algeq         ! ix component of injected current
+(-[P]*[vx] - [Q]*[vy])/max([V]**2,1.d-02) -[ix]
+& algeq         ! iy component of injected current
+( [Q]*[vx] - [P]*[vy])/max([V]**2,1.d-02) -[iy]
+ 

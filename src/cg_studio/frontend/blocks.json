@@ -1,12 +1,34 @@
 {
+  "ramses_in": {
+    "label": "RAMSES Input",
+    "category": "I/O",
+    "description": "Visual-only source for a RAMSES input state (v, p, q, omega, vx, vy, etc.). Optional \u2014 does not have to be connected.",
+    "inputs": [],
+    "outputs": ["state"],
+    "color": "#06b6d4",
+    "dsl_lines": [],
+    "args": [
+      {"name": "name", "label": "RAMSES state name", "type": "string", "default": "omega"}
+    ]
+  },
+  "ramses_out": {
+    "label": "RAMSES Output",
+    "category": "I/O",
+    "description": "Visual-only sink for a mandatory output state (vf, tm, ix, iy, etc.). Must be connected to an upstream block.",
+    "inputs": ["state"],
+    "outputs": [],
+    "color": "#f59e0b",
+    "dsl_lines": [],
+    "args": [
+      {"name": "name", "label": "Output state name", "type": "string", "default": "vf"}
+    ]
+  },
   "algeq": {
     "label": "Algebraic Equation",
     "category": "Algebraic",
-    "description": "Implicit algebraic equation: f(x) = 0. Write the residual expression.",
+    "description": "Implicit algebraic equation: f(x) = 0. Input connectors are derived from the [state] references in the expression; the equation has no output signal.",
     "inputs": [],
-    "outputs": [
-      "residual"
-    ],
+    "outputs": [],
     "color": "#6b7280",
     "dsl_lines": [
       "{{expr}}"

@@ -73,29 +73,88 @@ window.Forms = (() => {
     ((block&&block.outputs)||[]).forEach((outKey, idx) => {
       const f = _field('Output \"' + outKey + '\" signal', model.outputs[idx]||'');
       f.querySelector('input').addEventListener('change', e => {
-        const o = [...(model.outputs||[])]; o[idx] = e.target.value;
-        Store.updateModel(storeId,{outputs:o}); Canvas.refreshNode(storeId); _onChange&&_onChange();
-      });
-      formEl.appendChild(f);
-    });
-    // Args
-    ((block&&block.args)||[]).forEach(a => {
-      const val = (model.args&&model.args[a.name]!==undefined) ? model.args[a.name] : (a.default||'');
-      const f   = _field(a.name + (a.description?' — '+a.description:''), val);
-      f.querySelector('input').addEventListener('change', e => {
-        Store.updateModel(storeId,{args:Object.assign({},model.args||{},{[a.name]:e.target.value})});
+        const newSig = e.target.value;
+        const o = [...(model.outputs||[])]; o[idx] = newSig;
+        Store.updateModel(storeId,{outputs:o});
+        // Cascade: any outgoing wire on this output port now carries the new
+        // signal name, and downstream nodes must repaint to show it.
+        const port = 'output_' + (idx + 1);
+        const downstream = new Set();
+        (Store.get().wires||[]).forEach(w => {
+          if (w.from_node === storeId && w.from_port === port) {
+            w.signal_name = newSig;
+            downstream.add(w.to_node);
+          }
+        });
+        Canvas.refreshNode(storeId);
+        downstream.forEach(sid => Canvas.refreshNode(sid));
+        Canvas.updateWireLabels();
         _onChange&&_onChange();
       });
       formEl.appendChild(f);
     });
-    if (model.block_type==='algeq') {
-      const f = _field('Expression', (model.args&&model.args.expr)||'');
-      f.querySelector('input').addEventListener('change', e => {
-        Store.updateModel(storeId,{args:Object.assign({},model.args||{},{expr:e.target.value})});
-        _onChange&&_onChange();
+    // Args — algeq is handled below with its own tailored fields (single
+    // Expression field + Output state selector), so skip the generic loop.
+    if (model.block_type !== 'algeq') {
+      ((block&&block.args)||[]).forEach(a => {
+        const val = (model.args&&model.args[a.name]!==undefined) ? model.args[a.name] : (a.default||'');
+        const f   = _field(a.name + (a.description?' — '+a.description:''), val);
+        f.querySelector('input').addEventListener('change', e => {
+          Store.updateModel(storeId,{args:Object.assign({},model.args||{},{[a.name]:e.target.value})});
+          _onChange&&_onChange();
+        });
+        formEl.appendChild(f);
       });
-      formEl.appendChild(f);
     }
+    if (model.block_type==='algeq') {
+      // Single Expression field — updates Store AND rebuilds the Drawflow
+      // node so the port count / labels follow the new [state] refs.
+      const exprF = _field('Expression', (model.args&&model.args.expr)||'');
+      exprF.querySelector('input').addEventListener('change', e => {
+        Store.updateModel(storeId,{args:Object.assign({},model.args||{},{expr:e.target.value})});
+        Canvas.rebuildNode(storeId);
+        _onChange&&_onChange();
+      });
+      formEl.appendChild(exprF);
+
+      // Optional output states. Comma-separated list; each name becomes an
+      // output connector. Blank => no output pins and every [state] in the
+      // expression stays on an input pin.
+      const currentOuts =
+        (model.args && (Array.isArray(model.args.output_states)
+                          ? model.args.output_states.join(', ')
+                          : (model.args.output_states || model.args.output_state || '')))
+        || '';
+      const outF = _field(
+        'Output states (comma-separated, leave blank if none)',
+        currentOuts
+      );
+      outF.querySelector('input').addEventListener('change', e => {
+        const list = e.target.value
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+        const newArgs = Object.assign({}, model.args||{}, {output_states: list});
+        // Drop the legacy singular key so no two sources of truth exist.
+        delete newArgs.output_state;
+        Store.updateModel(storeId, {
+          args: newArgs,
+          outputs: list.slice(),
+        });
+        Canvas.rebuildNode(storeId);
+        _onChange && _onChange();
+      });
+      formEl.appendChild(outF);
+    }
+
+    // Comment — appears on every block, saved inside the project (.cgproj)
+    // and written onto the DSL header line (& blockname  ! comment) on emit.
+    const cmtF = _field('Comment', model.comment || '');
+    cmtF.querySelector('input').addEventListener('change', e => {
+      Store.updateModel(storeId, {comment: e.target.value});
+      _onChange && _onChange();
+    });
+    formEl.appendChild(cmtF);
   }
 
   function _field(label, value) {

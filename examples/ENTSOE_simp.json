@@ -1,0 +1,523 @@
+{
+  "model_type": "exc",
+  "model_name": "ENTSOE_simp",
+  "data": [
+    {
+      "name": "TW1",
+      "comment": ""
+    },
+    {
+      "name": "TW2",
+      "comment": ""
+    },
+    {
+      "name": "KS1",
+      "comment": ""
+    },
+    {
+      "name": "T1",
+      "comment": ""
+    },
+    {
+      "name": "T2",
+      "comment": ""
+    },
+    {
+      "name": "T3",
+      "comment": ""
+    },
+    {
+      "name": "T4",
+      "comment": ""
+    },
+    {
+      "name": "VSTMIN",
+      "comment": ""
+    },
+    {
+      "name": "VSTMAX",
+      "comment": ""
+    },
+    {
+      "name": "TA",
+      "comment": ""
+    },
+    {
+      "name": "TB",
+      "comment": ""
+    },
+    {
+      "name": "KE",
+      "comment": ""
+    },
+    {
+      "name": "TE",
+      "comment": ""
+    },
+    {
+      "name": "EMIN",
+      "comment": ""
+    },
+    {
+      "name": "EMAX",
+      "comment": ""
+    }
+  ],
+  "parameters": [
+    {
+      "name": "Vo",
+      "expr": "v+(vf/{KE})",
+      "continuation": true
+    }
+  ],
+  "states": [
+    {
+      "name": "domega",
+      "init": "0.",
+      "comment": ""
+    },
+    {
+      "name": "pss1",
+      "init": "0.",
+      "comment": ""
+    },
+    {
+      "name": "pss2",
+      "init": "0.",
+      "comment": ""
+    },
+    {
+      "name": "pss3",
+      "init": "0.",
+      "comment": ""
+    },
+    {
+      "name": "pss4",
+      "init": "0.",
+      "comment": ""
+    },
+    {
+      "name": "dvpss",
+      "init": "0.",
+      "comment": ""
+    },
+    {
+      "name": "avr1",
+      "init": "vf/{KE}",
+      "comment": ""
+    },
+    {
+      "name": "avr2",
+      "init": "vf/{KE}",
+      "comment": ""
+    }
+  ],
+  "observables": [
+    {
+      "name": "domega",
+      "expr": "",
+      "comment": ""
+    },
+    {
+      "name": "dvpss",
+      "expr": "",
+      "comment": ""
+    },
+    {
+      "name": "vf",
+      "expr": "",
+      "comment": ""
+    }
+  ],
+  "models": [
+    {
+      "id": "1",
+      "df_id": 1,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "[omega]-1.-[domega]"
+      },
+      "outputs": [
+        "domega"
+      ],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 157,
+        "y": 137
+      },
+      "rawArgLines": [
+        "[omega]-1.-[domega]"
+      ],
+      "comment": ""
+    },
+    {
+      "id": "2",
+      "df_id": 2,
+      "block_type": "tfder1p",
+      "label": "Derivative / Washout",
+      "color": "#2563eb",
+      "args": {
+        "K": "{TW1}",
+        "T": "{TW1}"
+      },
+      "outputs": [
+        "pss1"
+      ],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 393,
+        "y": 127
+      },
+      "rawArgLines": [
+        "domega",
+        "pss1",
+        "{TW1}",
+        "{TW1}"
+      ],
+      "comment": ""
+    },
+    {
+      "id": "3",
+      "df_id": 3,
+      "block_type": "tfder1p",
+      "label": "Derivative / Washout",
+      "color": "#2563eb",
+      "args": {
+        "K": "{TW2}",
+        "T": "{TW2}"
+      },
+      "outputs": [
+        "pss2"
+      ],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 643,
+        "y": 85
+      },
+      "rawArgLines": [
+        "pss1",
+        "pss2",
+        "{TW2}",
+        "{TW2}"
+      ],
+      "comment": ""
+    },
+    {
+      "id": "4",
+      "df_id": 4,
+      "block_type": "tf1p1z",
+      "label": "Lead-Lag TF",
+      "color": "#2563eb",
+      "args": {
+        "K": "{KS1}",
+        "Tz": "{T1}",
+        "Tp": "{T2}"
+      },
+      "outputs": [
+        "pss3"
+      ],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 880,
+        "y": 40
+      },
+      "rawArgLines": [
+        "pss2",
+        "pss3",
+        "{KS1}",
+        "{T1}",
+        "{T2}"
+      ],
+      "comment": ""
+    },
+    {
+      "id": "5",
+      "df_id": 5,
+      "block_type": "tf1p1z",
+      "label": "Lead-Lag TF",
+      "color": "#2563eb",
+      "args": {
+        "K": "1.",
+        "Tz": "{T3}",
+        "Tp": "{T4}"
+      },
+      "outputs": [
+        "pss4"
+      ],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 1193,
+        "y": 16
+      },
+      "rawArgLines": [
+        "pss3",
+        "pss4",
+        "1.",
+        "{T3}",
+        "{T4}"
+      ],
+      "comment": ""
+    },
+    {
+      "id": "6",
+      "df_id": 6,
+      "block_type": "lim",
+      "label": "Limiter",
+      "color": "#d97706",
+      "args": {
+        "lo": "{VSTMIN}",
+        "hi": "{VSTMAX}"
+      },
+      "outputs": [
+        "dvpss"
+      ],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 1462.3333333333333,
+        "y": 12
+      },
+      "rawArgLines": [
+        "pss4",
+        "dvpss",
+        "{VSTMIN}",
+        "{VSTMAX}"
+      ],
+      "comment": ""
+    },
+    {
+      "id": "7",
+      "df_id": 7,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "[avr1]-[dvpss]+[v]-{Vo}"
+      },
+      "outputs": [
+        "avr1"
+      ],
+      "inputs": [
+        null,
+        null
+      ],
+      "pos": {
+        "x": 1732.6666666666667,
+        "y": 70
+      },
+      "rawArgLines": [
+        "[avr1]-[dvpss]+[v]-{Vo}"
+      ],
+      "comment": ""
+    },
+    {
+      "id": "8",
+      "df_id": 8,
+      "block_type": "tf1p1z",
+      "label": "Lead-Lag TF",
+      "color": "#2563eb",
+      "args": {
+        "K": "1.",
+        "Tz": "{TA}",
+        "Tp": "{TB}"
+      },
+      "outputs": [
+        "avr2"
+      ],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": -190.66666666666666,
+        "y": 376
+      },
+      "rawArgLines": [
+        "avr1",
+        "avr2",
+        "1.",
+        "{TA}",
+        "{TB}"
+      ],
+      "comment": ""
+    },
+    {
+      "id": "9",
+      "df_id": 9,
+      "block_type": "tf1plim",
+      "label": "1st-Order TF + Limits",
+      "color": "#2563eb",
+      "args": {
+        "K": "{KE}",
+        "T": "{TE}",
+        "lo": "{EMIN}",
+        "hi": "{EMAX}"
+      },
+      "outputs": [
+        "vf"
+      ],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 82,
+        "y": 388
+      },
+      "rawArgLines": [
+        "avr2",
+        "vf",
+        "{KE}",
+        "{TE}",
+        "{EMIN}",
+        "{EMAX}"
+      ],
+      "comment": ""
+    },
+    {
+      "id": "io_1",
+      "df_id": 10,
+      "block_type": "ramses_in",
+      "label": "RAMSES Input",
+      "color": "#06b6d4",
+      "args": {
+        "name": "v"
+      },
+      "outputs": [
+        "[v]"
+      ],
+      "inputs": [],
+      "pos": {
+        "x": 565,
+        "y": 403
+      }
+    },
+    {
+      "id": "io_2",
+      "df_id": 11,
+      "block_type": "ramses_in",
+      "label": "RAMSES Input",
+      "color": "#06b6d4",
+      "args": {
+        "name": "omega"
+      },
+      "outputs": [
+        "[omega]"
+      ],
+      "inputs": [],
+      "pos": {
+        "x": -146,
+        "y": 138
+      }
+    },
+    {
+      "id": "io_3",
+      "df_id": 12,
+      "block_type": "ramses_out",
+      "label": "RAMSES Output",
+      "color": "#f59e0b",
+      "args": {
+        "name": "vf"
+      },
+      "outputs": [],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 338,
+        "y": 403
+      }
+    }
+  ],
+  "wires": [
+    {
+      "from_node": "1",
+      "from_port": "output_1",
+      "to_node": "2",
+      "to_port": "input_1",
+      "signal_name": "domega"
+    },
+    {
+      "from_node": "2",
+      "from_port": "output_1",
+      "to_node": "3",
+      "to_port": "input_1",
+      "signal_name": "pss1"
+    },
+    {
+      "from_node": "3",
+      "from_port": "output_1",
+      "to_node": "4",
+      "to_port": "input_1",
+      "signal_name": "pss2"
+    },
+    {
+      "from_node": "4",
+      "from_port": "output_1",
+      "to_node": "5",
+      "to_port": "input_1",
+      "signal_name": "pss3"
+    },
+    {
+      "from_node": "5",
+      "from_port": "output_1",
+      "to_node": "6",
+      "to_port": "input_1",
+      "signal_name": "pss4"
+    },
+    {
+      "from_node": "6",
+      "from_port": "output_1",
+      "to_node": "7",
+      "to_port": "input_1",
+      "signal_name": "dvpss"
+    },
+    {
+      "from_node": "7",
+      "from_port": "output_1",
+      "to_node": "8",
+      "to_port": "input_1",
+      "signal_name": "avr1"
+    },
+    {
+      "from_node": "8",
+      "from_port": "output_1",
+      "to_node": "9",
+      "to_port": "input_1",
+      "signal_name": "avr2"
+    },
+    {
+      "from_node": "io_1",
+      "from_port": "output_1",
+      "to_node": "7",
+      "to_port": "input_2",
+      "signal_name": "[v]"
+    },
+    {
+      "from_node": "io_2",
+      "from_port": "output_1",
+      "to_node": "1",
+      "to_port": "input_1",
+      "signal_name": "[omega]"
+    },
+    {
+      "from_node": "9",
+      "from_port": "output_1",
+      "to_node": "io_3",
+      "to_port": "input_1",
+      "signal_name": "vf"
+    }
+  ],
+  "canvas_meta": {}
+}

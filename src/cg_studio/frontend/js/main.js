@@ -28,11 +28,15 @@ window.Modal = {
 };
 
 (async function main() {
-  let blocks={}, _mandOut={};
+  let blocks={}, _mandOut={}, _ramIn={}, _ramReserved={};
   try { blocks=await Api.getBlocks(); }
   catch(e) { Toast.show('Backend unreachable: '+e.message,'error',8000); }
   try { _mandOut=await Api.getMandatoryOutputs(); }
   catch(e) { console.warn('Could not fetch mandatory outputs:', e.message); }
+  try { _ramIn=await Api.getRamsesInputs(); }
+  catch(e) { console.warn('Could not fetch RAMSES inputs:', e.message); }
+  try { _ramReserved=await Api.getRamsesReserved(); }
+  catch(e) { console.warn('Could not fetch RAMSES reserved names:', e.message); }
 
   // ── Colour themes per model type ──────────────────────────────────────────
   const MODEL_THEMES = {
@@ -49,16 +53,27 @@ window.Modal = {
     s.setProperty('--node-sel', t.nodeSel);
   }
 
-  Palette.init(blocks);
+  Palette.init(blocks, {
+    modelType:     Store.get().model_type || 'exc',
+    ramsesInputs:  _ramIn,
+    ramsesOutputs: _mandOut,
+  });
   Forms.init(onChange);
   Canvas.init(blocks, onSelect, onChange);
   DslPreview.init();
+  Resizers.init();
   _syncHeader();
   DslPreview.schedule();
+  _seedRamsesIO(Store.get().model_type || 'exc');
+  _reload();
 
   // ── Model type + name ────────────────────────────────────────────────────
   document.getElementById('sel-model-type').addEventListener('change', e=>{
-    Store.patch({model_type:e.target.value}); _applyTheme(e.target.value); onChange(); });
+    Store.patch({model_type:e.target.value});
+    _applyTheme(e.target.value);
+    Palette.setModelType(e.target.value);
+    onChange();
+  });
   document.getElementById('inp-model-name').addEventListener('change', e=>{
     const n=e.target.value.trim().replace(/\s+/g,'_')||'my_model';
     e.target.value=n; Store.patch({model_name:n});
@@ -71,12 +86,43 @@ window.Modal = {
     if(Store.redo()){_reload();Forms.refresh();_syncHeader();onChange();} });
   document.getElementById('btn-del').addEventListener('click',()=>Canvas.deleteSelected());
   document.getElementById('btn-fit').addEventListener('click',()=>Canvas.fitView());
+  document.getElementById('btn-check').addEventListener('click',()=>{
+    const issues = CheckModel.run(Store.get(), {
+      ramsesInputs:  _ramIn,
+      ramsesOutputs: _mandOut,
+    });
+    CheckModel.render(issues);
+  });
+  // Toggle the Issues panel when the user clicks its header.
+  document.getElementById('issues-header').addEventListener('click',()=>{
+    document.getElementById('issues-wrap').classList.toggle('collapsed');
+  });
 
   // ── New ──────────────────────────────────────────────────────────────────
   document.getElementById('btn-new').addEventListener('click', async ()=>{
-    const ok=await Modal.show('New Model','Discard current model?','Discard','Cancel');
-    if(!ok) return;
-    Store.reset(); _reload(); Forms.refresh(); _syncHeader(); onChange(); });
+    const types = [
+      ['exc',  'Excitation controller (exc)'],
+      ['tor',  'Torque controller (tor)'],
+      ['inj',  'Injector (inj)'],
+      ['twop', 'Two-port (twop)'],
+    ];
+    const current = Store.get().model_type || 'exc';
+    const opts = types.map(([v,l]) =>
+      `<option value="${v}"${v===current?' selected':''}>${l}</option>`).join('');
+    const body =
+      `<p>Discard the current model and create a new one?</p>
+       <label for="new-model-type" style="display:block;margin-top:10px">Model type:</label>
+       <select id="new-model-type" style="margin-top:4px;width:100%">${opts}</select>`;
+    const ok = await Modal.show('New Model', body, 'Create', 'Cancel');
+    if (!ok) return;
+    const chosen = (document.getElementById('new-model-type')||{}).value || 'exc';
+    Store.reset();
+    Store.patch({model_type: chosen}, false);
+    _applyTheme(chosen);
+    Palette.setModelType(chosen);
+    _seedRamsesIO(chosen);
+    _reload(); Forms.refresh(); _syncHeader(); onChange();
+  });
 
   // ── Load DSL ─────────────────────────────────────────────────────────────
   document.getElementById('btn-load-dsl').addEventListener('click',()=>
@@ -84,9 +130,17 @@ window.Modal = {
   document.getElementById('file-input-dsl').addEventListener('change', async e=>{
     const f=e.target.files[0]; if(!f) return; e.target.value='';
     try {
-      const proj=await Api.parseDSL(await f.text());
+      const parsed=await Api.parseDSL(await f.text());
+      const proj=ProjectAdapter.parsedToFrontend(parsed, blocks, {
+        ramsesInputs:   _ramIn,
+        ramsesOutputs:  _mandOut,
+        ramsesReserved: _ramReserved,
+      });
+      if(parsed.errors&&parsed.errors.length)
+        Toast.show('Parse warnings: '+parsed.errors.join('; '),'',6000);
       Store.set(proj); _reload(); Forms.refresh(); _syncHeader(); onChange();
       Toast.show('Loaded: '+proj.model_name,'success');
+      _warnFloatingStates();
     } catch(err){ Toast.show('Parse error: '+err.message,'error'); } });
 
   // ── Load Project ──────────────────────────────────────────────────────────
@@ -98,6 +152,7 @@ window.Modal = {
       const proj=JSON.parse(await f.text());
       Store.set(proj); _reload(); Forms.refresh(); _syncHeader(); onChange();
       Toast.show('Project loaded: '+proj.model_name,'success');
+      _warnFloatingStates();
     } catch(err){ Toast.show('Load error: '+err.message,'error'); } });
 
   // ── Save Project ──────────────────────────────────────────────────────────
@@ -109,6 +164,7 @@ window.Modal = {
   // ── Export DSL ────────────────────────────────────────────────────────────
   document.getElementById('btn-export-dsl').addEventListener('click', async ()=>{
     if(!(await _validateMandatoryOutputs())) return;
+    if(!(await _validateFloatingStates())) return;
     await DslPreview.renderNow();
     const dsl=DslPreview.getLast();
     if(!dsl){Toast.show('Nothing to export','error');return;}
@@ -213,7 +269,70 @@ window.Modal = {
     return Modal.show('Missing Mandatory Outputs', html, 'Export Anyway', 'Cancel');
   }
 
+  // Floating-state check: a state literal sitting on a port of block A while
+  // the same state appears somewhere else in the project (as an output,
+  // wire signal, or another literal) means a wire is missing between them.
+  function _findFloatingStateIssues() {
+    return Validate.findFloatingStateIssues(Store.get());
+  }
+  function _warnFloatingStates() {
+    const issues = _findFloatingStateIssues();
+    if (!issues.length) return;
+    const groups = Validate.summariseIssues(issues);
+    const list = groups.slice(0, 4)
+      .map(g => g.state + ' (' + g.models.length + ' blocks)').join(', ');
+    const more = groups.length > 4 ? ' \u2026' : '';
+    Toast.show(
+      'Floating state reference'+(groups.length>1?'s':'')+': '+list+more+
+        '. Inspect those blocks to wire them up.',
+      'warning', 8000);
+  }
+  async function _validateFloatingStates() {
+    const issues = _findFloatingStateIssues();
+    if (!issues.length) return true;
+    const groups = Validate.summariseIssues(issues);
+    const rows = groups.map(g =>
+      '<li><code>'+_esc(g.state)+'</code> referenced by '+g.models.length+
+      ' blocks without a shared wire</li>').join('');
+    const html =
+      '<p>The following states are referenced by multiple blocks but the '+
+      'connections are not wired on the canvas:</p>'+
+      '<ul>'+rows+'</ul>'+
+      '<p style="color:var(--warning)">The emitted DSL may not compile. '+
+      'Wire the connectors up before exporting, or click <b>Export Anyway</b>.</p>';
+    return Modal.show('Floating State Connectors', html, 'Export Anyway', 'Cancel');
+  }
+
   // ── Internal helpers ──────────────────────────────────────────────────────
+  // Seed the canvas with one ramses_in per RAMSES input and one ramses_out
+  // per mandatory output for the given model type. Inputs go in a left
+  // column, outputs in a right column. Call BEFORE _reload() so loadProject
+  // picks them up.
+  function _seedRamsesIO(mt) {
+    const ins  = _ramIn[mt]   || [];
+    const outs = _mandOut[mt] || [];
+    const inBlock  = blocks['ramses_in'];
+    const outBlock = blocks['ramses_out'];
+    if (!inBlock || !outBlock) return;
+    const LEFT_X = 40, RIGHT_X = 900, STEP_Y = 90, Y0 = 60;
+    ins.forEach((name, i) => {
+      Store.addModel({
+        id: Store.nextId(), df_id: null, block_type: 'ramses_in',
+        label: inBlock.label, color: inBlock.color,
+        args: {name}, outputs: ['['+name+']'], inputs: [],
+        pos: {x: LEFT_X, y: Y0 + i*STEP_Y}
+      }, false);
+    });
+    outs.forEach((name, i) => {
+      Store.addModel({
+        id: Store.nextId(), df_id: null, block_type: 'ramses_out',
+        label: outBlock.label, color: outBlock.color,
+        args: {name}, outputs: [], inputs: [null],
+        pos: {x: RIGHT_X, y: Y0 + i*STEP_Y}
+      }, false);
+    });
+  }
+
   function onSelect(sid) { Forms.showInspector(sid); _status(); }
   function onChange()    { DslPreview.schedule(); _undoRedo(); _status(); }
   function _reload()     { Canvas.loadProject(Store.get()); }

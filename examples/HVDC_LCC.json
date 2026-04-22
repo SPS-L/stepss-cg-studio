@@ -1,0 +1,1675 @@
+{
+  "model_type": "twop",
+  "model_name": "HVDC_LCC",
+  "data": [
+    {
+      "name": "p",
+      "comment": "! number of poles (1 or 2)"
+    },
+    {
+      "name": "rec_ctl",
+      "comment": "! rectifier control : 1= current control, 2= power control, -1= alpha min control, 3=blocked (shut down)"
+    },
+    {
+      "name": "inv_ctl",
+      "comment": "! inverter control : 1= voltage control, 2= gamma control, -2= gamma min control,-1= reduced current control,3=blocked (shut down)"
+    },
+    {
+      "name": "Br",
+      "comment": "! number of bridges in series in rectifier"
+    },
+    {
+      "name": "Bi",
+      "comment": "! number of bridges in series in inverter"
+    },
+    {
+      "name": "Er",
+      "comment": "! phase-to-phase open-circuit voltage (kV) on DC side of rectifier transformer with 1 pu voltage on AC side"
+    },
+    {
+      "name": "Ei",
+      "comment": "! phase-to-phase open-circuit voltage (kV) on DC side of inverter transformer with 1 pu voltage on AC side"
+    },
+    {
+      "name": "Rcr",
+      "comment": "! rectifier commutating resistance per bridge (in ohm)"
+    },
+    {
+      "name": "Xcr",
+      "comment": "! rectifier commutating reactance per bridge (in ohm)"
+    },
+    {
+      "name": "Rci",
+      "comment": "! inverter commutating resistance per bridge (in ohm)"
+    },
+    {
+      "name": "Xci",
+      "comment": "! inverter commutating reactance per bridge (in ohm)"
+    },
+    {
+      "name": "RL",
+      "comment": "! DC line series resistance (ohm)"
+    },
+    {
+      "name": "Rcomp",
+      "comment": "! compounding resistance (voltage control by inverter) (ohm)"
+    },
+    {
+      "name": "Tp",
+      "comment": "! time constant of power control (s); not used if current is controlled"
+    },
+    {
+      "name": "Idset",
+      "comment": "! initial value (and setpoint if rec_ctl=1) of DC current (kA)"
+    },
+    {
+      "name": "nr",
+      "comment": "! initial rectifier transformer ratio(pu/pu)"
+    },
+    {
+      "name": "ni",
+      "comment": "! initial inverter transformer ratio (pu/pu) dIdt"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "Pset",
+      "expr": "-([vx1]*[ix1]+[vy1]*[iy1])*sbase1",
+      "continuation": false
+    },
+    {
+      "name": "Vdr0",
+      "expr": "{Pset}/({p}*{Idset})",
+      "continuation": false
+    },
+    {
+      "name": "alpha0",
+      "expr": "dacos( ({nr}/(1.3504745*{Er}*dsqrt([vx1]**2+[vy1]**2))) * (({Vdr0}/{Br})+(0.9549297*{Xcr}+2*{Rcr})*{Idset}) )",
+      "continuation": false
+    },
+    {
+      "name": "mur0",
+      "expr": "dacos( dcos({alpha0}) - 1.4142136*{Xcr}*{nr}*{Idset}/(dsqrt([vx1]**2+[vy1]**2)*{Er})) - {alpha0}",
+      "continuation": false
+    },
+    {
+      "name": "Qhvdc1",
+      "expr": "{Pset}* (2.d0*{mur0}+dsin(2*{alpha0})-dsin(2d0*({mur0}+{alpha0})))/(dcos(2.d0*{alpha0})-dcos(2d0*({mur0}+{alpha0})))",
+      "continuation": false
+    },
+    {
+      "name": "B1",
+      "expr": "({Qhvdc1}/sbase1-[vx1]*[iy1]+[vy1]*[ix1])/([vx1]**2+[vy1]**2)",
+      "continuation": false
+    },
+    {
+      "name": "Vdi0",
+      "expr": "{Vdr0}-{RL}*{Idset}",
+      "continuation": false
+    },
+    {
+      "name": "gamma0",
+      "expr": "dacos( ({ni}/(1.3504745*{Ei}*dsqrt([vx2]**2+[vy2]**2))) * (({Vdi0}/{Bi})+(0.9549297*{Xci}+2*{Rci})*{Idset}) )",
+      "continuation": false
+    },
+    {
+      "name": "mui0",
+      "expr": "dacos( dcos({gamma0}) - 1.4142136*{Xci}*{ni}*{Idset}/(dsqrt([vx2]**2+[vy2]**2)*{Ei})) - {gamma0}",
+      "continuation": false
+    },
+    {
+      "name": "P2in",
+      "expr": "{p}*{Vdi0}*{Idset}",
+      "continuation": false
+    },
+    {
+      "name": "G2",
+      "expr": "({P2in}/sbase2-[vx2]*[ix2]-[vy2]*[iy2])/dsqrt([vx2]**2+[vy2]**2)",
+      "continuation": false
+    },
+    {
+      "name": "Qhvdc2",
+      "expr": "{P2in}* (2.d0*{mui0}+dsin(2*{gamma0})-dsin(2d0*({mui0}+{gamma0})))/(dcos(2.d0*{gamma0})-dcos(2d0*({mui0}+{gamma0})))",
+      "continuation": false
+    },
+    {
+      "name": "B2",
+      "expr": "({Qhvdc2}/sbase2-[vx2]*[iy2]+[vy2]*[ix2])/([vx2]**2+[vy2]**2)",
+      "continuation": false
+    },
+    {
+      "name": "Vset",
+      "expr": "{Vdi0}+{Rcomp}*{Idset}",
+      "continuation": false
+    },
+    {
+      "name": "alphamin",
+      "expr": "0.d0",
+      "continuation": false
+    },
+    {
+      "name": "Idred",
+      "expr": "0.d0",
+      "continuation": false
+    },
+    {
+      "name": "gammamin",
+      "expr": "0.d0",
+      "continuation": false
+    },
+    {
+      "name": "Td",
+      "expr": "0.02",
+      "continuation": false
+    }
+  ],
+  "states": [
+    {
+      "name": "Vdr",
+      "init": "{Vdr0}",
+      "comment": "rectifier DC voltage (kV)"
+    },
+    {
+      "name": "alpha",
+      "init": "{alpha0}",
+      "comment": "firing angle (rad)"
+    },
+    {
+      "name": "mur",
+      "init": "{mur0}",
+      "comment": "overlap firing angle (rad)"
+    },
+    {
+      "name": "Id",
+      "init": "{Idset}",
+      "comment": "DC current (kA)"
+    },
+    {
+      "name": "Vdi",
+      "init": "{Vdi0}",
+      "comment": "inverter DC voltage (kV)"
+    },
+    {
+      "name": "gamma",
+      "init": "{gamma0}",
+      "comment": "extinction angle (rad)"
+    },
+    {
+      "name": "mui",
+      "init": "{mui0}",
+      "comment": "overlap extinction angle (rad)"
+    },
+    {
+      "name": "Ides",
+      "init": "{Idset}",
+      "comment": "DC current desired (kA)"
+    },
+    {
+      "name": "Iord",
+      "init": "{Idset}",
+      "comment": "DC current order (kA)"
+    },
+    {
+      "name": "P1",
+      "init": "(-[vx1]*[ix1]-[vy1]*[iy1])*sbase1",
+      "comment": "active power entering the link at rectifier end (pu)"
+    },
+    {
+      "name": "Q1",
+      "init": "([vx1]*[iy1]-[vy1]*[ix1])*sbase1",
+      "comment": "reactive power entering the link at rectifier end (pu)"
+    },
+    {
+      "name": "P2",
+      "init": "([vx2]*[ix2]+[vy2]*[iy2])*sbase2",
+      "comment": "active power exiting the link at inverter end (pu)"
+    },
+    {
+      "name": "Q2",
+      "init": "([vx2]*[iy2]-[vy2]*[ix2])*sbase2",
+      "comment": "reactive power entering the link at rectifier end (pu)"
+    },
+    {
+      "name": "V1",
+      "init": "dsqrt([vx1]**2+[vy1]**2)",
+      "comment": ""
+    },
+    {
+      "name": "V1d",
+      "init": "dsqrt([vx1]**2+[vy1]**2)",
+      "comment": ""
+    },
+    {
+      "name": "V2",
+      "init": "dsqrt([vx2]**2+[vy2]**2)",
+      "comment": ""
+    },
+    {
+      "name": "V2d",
+      "init": "dsqrt([vx2]**2+[vy2]**2)",
+      "comment": ""
+    },
+    {
+      "name": "alphad",
+      "init": "{alpha0}*57.2957795",
+      "comment": ""
+    },
+    {
+      "name": "gammad",
+      "init": "{gamma0}*57.2957795",
+      "comment": ""
+    }
+  ],
+  "observables": [
+    {
+      "name": "Vdr",
+      "expr": "",
+      "comment": ""
+    },
+    {
+      "name": "alphad",
+      "expr": "",
+      "comment": ""
+    },
+    {
+      "name": "mur",
+      "expr": "",
+      "comment": ""
+    },
+    {
+      "name": "Vdi",
+      "expr": "",
+      "comment": ""
+    },
+    {
+      "name": "gammad",
+      "expr": "",
+      "comment": ""
+    },
+    {
+      "name": "mui",
+      "expr": "",
+      "comment": ""
+    },
+    {
+      "name": "Ides",
+      "expr": "",
+      "comment": ""
+    },
+    {
+      "name": "Iord",
+      "expr": "",
+      "comment": ""
+    },
+    {
+      "name": "Id",
+      "expr": "",
+      "comment": ""
+    },
+    {
+      "name": "P1",
+      "expr": "",
+      "comment": ""
+    },
+    {
+      "name": "Q1",
+      "expr": "",
+      "comment": ""
+    },
+    {
+      "name": "P2",
+      "expr": "",
+      "comment": ""
+    },
+    {
+      "name": "Q2",
+      "expr": "",
+      "comment": ""
+    },
+    {
+      "name": "Pset",
+      "expr": "",
+      "comment": ""
+    }
+  ],
+  "models": [
+    {
+      "id": "1",
+      "df_id": 1,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "[Vdr] - {Br}*( 1.3504745*[V1d]*{Er}*dcos([alpha])/{nr} - (0.9549297*{Xcr}+2*{Rcr})*[Id] )",
+        "output_states": [
+          "Vdr"
+        ]
+      },
+      "outputs": [
+        "Vdr"
+      ],
+      "inputs": [
+        null,
+        null,
+        null
+      ],
+      "pos": {
+        "x": 980,
+        "y": 40
+      },
+      "rawArgLines": [
+        "[Vdr] - {Br}*( 1.3504745*[V1d]*{Er}*dcos([alpha])/{nr} - (0.9549297*{Xcr}+2*{Rcr})*[Id] )"
+      ],
+      "comment": "! Vdr - Eq. (1)"
+    },
+    {
+      "id": "2",
+      "df_id": 2,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "dcos([alpha]+[mur]) - dcos([alpha]) + 1.4142136*{Xcr}*{nr}*[Id]/(max([V1d],1.d-03)*{Er})",
+        "output_states": [
+          "mur"
+        ]
+      },
+      "outputs": [
+        "mur"
+      ],
+      "inputs": [
+        null,
+        null,
+        null
+      ],
+      "pos": {
+        "x": 2180,
+        "y": 328
+      },
+      "rawArgLines": [
+        "dcos([alpha]+[mur]) - dcos([alpha]) + 1.4142136*{Xcr}*{nr}*[Id]/(max([V1d],1.d-03)*{Er})"
+      ],
+      "comment": "! mu rectifier - Eq. (2)"
+    },
+    {
+      "id": "3",
+      "df_id": 3,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "{B1}*[vy1]-([vx1]+[vy1]*(2*[mur]+dsin(2*[alpha])-dsin(2*([mur]+[alpha])))/max((dcos(2*[alpha])-dcos(2*([mur]+[alpha]))),1d-03))*{p}*[Vdr]*[Id]/(sbase1*max([V1d]**2,1d-06)) - [ix1]",
+        "output_states": [
+          "ix1"
+        ]
+      },
+      "outputs": [
+        "ix1"
+      ],
+      "inputs": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "pos": {
+        "x": 2480,
+        "y": 580
+      },
+      "rawArgLines": [
+        "{B1}*[vy1]-([vx1]+[vy1]*(2*[mur]+dsin(2*[alpha])-dsin(2*([mur]+[alpha])))/max((dcos(2*[alpha])-dcos(2*([mur]+[alpha]))),1d-03))*{p}*[Vdr]*[Id]/(sbase1*max([V1d]**2,1d-06)) - [ix1]"
+      ],
+      "comment": "! ix1 rectifier - Eq.(3)"
+    },
+    {
+      "id": "4",
+      "df_id": 4,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "-{B1}*[vx1]-([vy1]-[vx1]*(2*[mur]+dsin(2*[alpha])-dsin(2*([mur]+[alpha])))/max((dcos(2*[alpha])-dcos(2*([mur]+[alpha]))),1d-03))*{p}*[Vdr]*[Id]/(sbase1*max([V1d]**2,1d-06)) - [iy1]",
+        "output_states": [
+          "iy1"
+        ]
+      },
+      "outputs": [
+        "iy1"
+      ],
+      "inputs": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "pos": {
+        "x": 2480,
+        "y": 850
+      },
+      "rawArgLines": [
+        "-{B1}*[vx1]-([vy1]-[vx1]*(2*[mur]+dsin(2*[alpha])-dsin(2*([mur]+[alpha])))/max((dcos(2*[alpha])-dcos(2*([mur]+[alpha]))),1d-03))*{p}*[Vdr]*[Id]/(sbase1*max([V1d]**2,1d-06)) - [iy1]"
+      ],
+      "comment": "! iy1 rectifier - Eq. (4)"
+    },
+    {
+      "id": "5",
+      "df_id": 5,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "[Vdi] - {Bi}*( 1.3504745*[V2d]*{Ei}*dcos([gamma])/{ni} - (0.9549297*{Xci}+2*{Rci})*[Id] )",
+        "output_states": [
+          "Vdi"
+        ]
+      },
+      "outputs": [
+        "Vdi"
+      ],
+      "inputs": [
+        null,
+        null,
+        null
+      ],
+      "pos": {
+        "x": 1580,
+        "y": 40
+      },
+      "rawArgLines": [
+        "[Vdi] - {Bi}*( 1.3504745*[V2d]*{Ei}*dcos([gamma])/{ni} - (0.9549297*{Xci}+2*{Rci})*[Id] )"
+      ],
+      "comment": "! Vdi - Eq. (5)"
+    },
+    {
+      "id": "6",
+      "df_id": 6,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "dcos([gamma]+[mui]) - dcos([gamma]) + 1.4142136*{Xci}*{ni}*[Id]/(max([V2d],1.d-03)*{Er})",
+        "output_states": [
+          "mui"
+        ]
+      },
+      "outputs": [
+        "mui"
+      ],
+      "inputs": [
+        null,
+        null,
+        null
+      ],
+      "pos": {
+        "x": 2180,
+        "y": 40
+      },
+      "rawArgLines": [
+        "dcos([gamma]+[mui]) - dcos([gamma]) + 1.4142136*{Xci}*{ni}*[Id]/(max([V2d],1.d-03)*{Er})"
+      ],
+      "comment": "! mu inverter - Eq. (6)"
+    },
+    {
+      "id": "7",
+      "df_id": 7,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "-{G2}*[vx2]+{B2}*[vy2]+([vx2]-[vy2]*(2*[mui]+dsin(2*[gamma])-dsin(2*([mui]+[gamma])))/max((dcos(2*[gamma])-dcos(2*([mui]+[gamma]))),1d-03))*{p}*[Vdi]*[Id]/(sbase2*max([V2d]**2,1d-06)) - [ix2]",
+        "output_states": [
+          "ix2"
+        ]
+      },
+      "outputs": [
+        "ix2"
+      ],
+      "inputs": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "pos": {
+        "x": 2480,
+        "y": 40
+      },
+      "rawArgLines": [
+        "-{G2}*[vx2]+{B2}*[vy2]+([vx2]-[vy2]*(2*[mui]+dsin(2*[gamma])-dsin(2*([mui]+[gamma])))/max((dcos(2*[gamma])-dcos(2*([mui]+[gamma]))),1d-03))*{p}*[Vdi]*[Id]/(sbase2*max([V2d]**2,1d-06)) - [ix2]"
+      ],
+      "comment": "! ix2 inverter - Eq.(7)"
+    },
+    {
+      "id": "8",
+      "df_id": 8,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "-{B2}*[vx2]-{G2}*[vy2]+([vy2]+[vx2]*(2*[mui]+dsin(2*[gamma])-dsin(2*([mui]+[gamma])))/max((dcos(2*[gamma])-dcos(2*([mui]+[gamma]))),1d-03))*{p}*[Vdi]*[Id]/(sbase2*max([V2d]**2,1d-06)) - [iy2]",
+        "output_states": [
+          "iy2"
+        ]
+      },
+      "outputs": [
+        "iy2"
+      ],
+      "inputs": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "pos": {
+        "x": 2480,
+        "y": 310
+      },
+      "rawArgLines": [
+        "-{B2}*[vx2]-{G2}*[vy2]+([vy2]+[vx2]*(2*[mui]+dsin(2*[gamma])-dsin(2*([mui]+[gamma])))/max((dcos(2*[gamma])-dcos(2*([mui]+[gamma]))),1d-03))*{p}*[Vdi]*[Id]/(sbase2*max([V2d]**2,1d-06)) - [iy2]"
+      ],
+      "comment": "! iy2 inverter - Eq.(8)"
+    },
+    {
+      "id": "9",
+      "df_id": 9,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "[Vdr]-[Vdi]-{RL}*[Id]",
+        "output_states": [
+          "Id"
+        ]
+      },
+      "outputs": [
+        "Id"
+      ],
+      "inputs": [
+        null,
+        null
+      ],
+      "pos": {
+        "x": 1280,
+        "y": 40
+      },
+      "rawArgLines": [
+        "[Vdr]-[Vdi]-{RL}*[Id]"
+      ],
+      "comment": "! DC link - Eq. (9)"
+    },
+    {
+      "id": "10",
+      "df_id": 10,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "(equal({rec_ctl},1.d0)*{Idset}) +(equal({rec_ctl},2.d0)*({Pset}/max([Vdr],1d-02))) -(equal({rec_ctl},3.d0)*50.d0) -(equal({rec_ctl},-1.d0)*50.d0) -[Ides]",
+        "output_states": [
+          "Ides"
+        ]
+      },
+      "outputs": [
+        "Ides"
+      ],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 1280,
+        "y": 170
+      },
+      "rawArgLines": [
+        "(equal({rec_ctl},1.d0)*{Idset}) +(equal({rec_ctl},2.d0)*({Pset}/max([Vdr],1d-02))) -(equal({rec_ctl},3.d0)*50.d0) -(equal({rec_ctl},-1.d0)*50.d0) -[Ides]"
+      ],
+      "comment": "! computation of Ides (set << 0 when DC current no longer controlled; this will set Iord to zero)"
+    },
+    {
+      "id": "11",
+      "df_id": 11,
+      "block_type": "tf1plim",
+      "label": "1st-Order TF + Limits",
+      "color": "#2563eb",
+      "args": {
+        "K": "1.d0",
+        "T": "Tp",
+        "lo": "0.d0",
+        "hi": "9999.d0"
+      },
+      "outputs": [
+        "Iord"
+      ],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 1580,
+        "y": 198
+      },
+      "rawArgLines": [
+        "Ides",
+        "Iord",
+        "1.d0",
+        "Tp",
+        "0.d0",
+        "9999.d0"
+      ],
+      "comment": "! time constant to obtain Iord from Ides"
+    },
+    {
+      "id": "12",
+      "df_id": 12,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "equal({rec_ctl},1.d0)*([Iord]-[Id]) +equal({rec_ctl},2.d0)*([Iord]-[Id]) +equal({rec_ctl},-1d0)*({alphamin}-[alpha]) +equal({rec_ctl},3.d0)*[Id]",
+        "output_states": [
+          "alpha"
+        ]
+      },
+      "outputs": [
+        "alpha"
+      ],
+      "inputs": [
+        null,
+        null
+      ],
+      "pos": {
+        "x": 1880,
+        "y": 170
+      },
+      "rawArgLines": [
+        "equal({rec_ctl},1.d0)*([Iord]-[Id]) +equal({rec_ctl},2.d0)*([Iord]-[Id]) +equal({rec_ctl},-1d0)*({alphamin}-[alpha]) +equal({rec_ctl},3.d0)*[Id]"
+      ],
+      "comment": "! rectifier : current order, min firing angle, zero DC current"
+    },
+    {
+      "id": "13",
+      "df_id": 13,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "equal({inv_ctl},1.d0)*([Vdi]+{Rcomp}*[Id]-{Vset}) +equal({inv_ctl},2.d0)*({gamma0}-[gamma]) +equal({inv_ctl},-2d0)*({gammamin}-[gamma]) +equal({inv_ctl},-1d0)*({Idred}-[Id])+ equal({inv_ctl},3.d0)*(1.570796327-[gamma])",
+        "output_states": [
+          "gamma"
+        ]
+      },
+      "outputs": [
+        "gamma"
+      ],
+      "inputs": [
+        null,
+        null
+      ],
+      "pos": {
+        "x": 1880,
+        "y": 40
+      },
+      "rawArgLines": [
+        "equal({inv_ctl},1.d0)*([Vdi]+{Rcomp}*[Id]-{Vset}) +equal({inv_ctl},2.d0)*({gamma0}-[gamma]) +equal({inv_ctl},-2d0)*({gammamin}-[gamma]) +equal({inv_ctl},-1d0)*({Idred}-[Id])+ equal({inv_ctl},3.d0)*(1.570796327-[gamma])"
+      ],
+      "comment": "! inverter : voltage setpoint, specified extinc. angle, min extinc. angle, gamma=90 deg, reduced DC current"
+    },
+    {
+      "id": "14",
+      "df_id": 14,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "dsqrt([vx1]**2+[vy1]**2) - [V1]",
+        "output_states": [
+          "V1"
+        ]
+      },
+      "outputs": [
+        "V1"
+      ],
+      "inputs": [
+        null,
+        null
+      ],
+      "pos": {
+        "x": 380,
+        "y": 40
+      },
+      "rawArgLines": [
+        "dsqrt([vx1]**2+[vy1]**2) - [V1]"
+      ],
+      "comment": "! AC voltage at bus 1"
+    },
+    {
+      "id": "15",
+      "df_id": 15,
+      "block_type": "tf1p",
+      "label": "1st-Order TF",
+      "color": "#2563eb",
+      "args": {
+        "K": "1.",
+        "T": "Td"
+      },
+      "outputs": [
+        "V1d"
+      ],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 680,
+        "y": 40
+      },
+      "rawArgLines": [
+        "V1",
+        "V1d",
+        "1.",
+        "Td"
+      ],
+      "comment": "! time constant Td applied to AC voltage at bus 1"
+    },
+    {
+      "id": "16",
+      "df_id": 16,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "dsqrt([vx2]**2+[vy2]**2) - [V2]",
+        "output_states": [
+          "V2"
+        ]
+      },
+      "outputs": [
+        "V2"
+      ],
+      "inputs": [
+        null,
+        null
+      ],
+      "pos": {
+        "x": 380,
+        "y": 170
+      },
+      "rawArgLines": [
+        "dsqrt([vx2]**2+[vy2]**2) - [V2]"
+      ],
+      "comment": "! AC voltage at bus 2"
+    },
+    {
+      "id": "17",
+      "df_id": 17,
+      "block_type": "tf1p",
+      "label": "1st-Order TF",
+      "color": "#2563eb",
+      "args": {
+        "K": "1.",
+        "T": "Td"
+      },
+      "outputs": [
+        "V2d"
+      ],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 680,
+        "y": 142
+      },
+      "rawArgLines": [
+        "V2",
+        "V2d",
+        "1.",
+        "Td"
+      ],
+      "comment": "! time constant Td applied to AC voltage at bus 2"
+    },
+    {
+      "id": "18",
+      "df_id": 18,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "(-[vx1]*[ix1]-[vy1]*[iy1])*sbase1-[P1]",
+        "output_states": []
+      },
+      "outputs": [],
+      "inputs": [
+        null,
+        null,
+        null,
+        null,
+        "[P1]"
+      ],
+      "pos": {
+        "x": 2780,
+        "y": 774
+      },
+      "rawArgLines": [
+        "(-[vx1]*[ix1]-[vy1]*[iy1])*sbase1-[P1]"
+      ],
+      "comment": "! observable P1"
+    },
+    {
+      "id": "19",
+      "df_id": 19,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "( [vx1]*[iy1]-[vy1]*[ix1])*sbase1-[Q1]",
+        "output_states": []
+      },
+      "outputs": [],
+      "inputs": [
+        null,
+        null,
+        null,
+        null,
+        "[Q1]"
+      ],
+      "pos": {
+        "x": 2780,
+        "y": 988
+      },
+      "rawArgLines": [
+        "( [vx1]*[iy1]-[vy1]*[ix1])*sbase1-[Q1]"
+      ],
+      "comment": "! observable Q1"
+    },
+    {
+      "id": "20",
+      "df_id": 20,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "([vx2]*[ix2]+[vy2]*[iy2])*sbase2-[P2]",
+        "output_states": []
+      },
+      "outputs": [],
+      "inputs": [
+        null,
+        null,
+        null,
+        null,
+        "[P2]"
+      ],
+      "pos": {
+        "x": 2780,
+        "y": 142
+      },
+      "rawArgLines": [
+        "([vx2]*[ix2]+[vy2]*[iy2])*sbase2-[P2]"
+      ],
+      "comment": "! observable P2"
+    },
+    {
+      "id": "21",
+      "df_id": 21,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "([vx2]*[iy2]-[vy2]*[ix2])*sbase2-[Q2]",
+        "output_states": []
+      },
+      "outputs": [],
+      "inputs": [
+        null,
+        null,
+        null,
+        null,
+        "[Q2]"
+      ],
+      "pos": {
+        "x": 2780,
+        "y": 356
+      },
+      "rawArgLines": [
+        "([vx2]*[iy2]-[vy2]*[ix2])*sbase2-[Q2]"
+      ],
+      "comment": "! observable Q2"
+    },
+    {
+      "id": "22",
+      "df_id": 22,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "[alphad]-[alpha]*57.2957795",
+        "output_states": []
+      },
+      "outputs": [],
+      "inputs": [
+        "[alphad]",
+        null
+      ],
+      "pos": {
+        "x": 2180,
+        "y": 486
+      },
+      "rawArgLines": [
+        "[alphad]-[alpha]*57.2957795"
+      ],
+      "comment": "! alpha degrees"
+    },
+    {
+      "id": "23",
+      "df_id": 23,
+      "block_type": "algeq",
+      "label": "Algebraic Equation",
+      "color": "#6b7280",
+      "args": {
+        "expr": "[gammad]-[gamma]*57.2957795",
+        "output_states": []
+      },
+      "outputs": [],
+      "inputs": [
+        "[gammad]",
+        null
+      ],
+      "pos": {
+        "x": 2180,
+        "y": 198
+      },
+      "rawArgLines": [
+        "[gammad]-[gamma]*57.2957795"
+      ],
+      "comment": "! gamma degrees"
+    },
+    {
+      "id": "io_1",
+      "df_id": 24,
+      "block_type": "ramses_in",
+      "label": "RAMSES Input",
+      "color": "#06b6d4",
+      "args": {
+        "name": "vx1"
+      },
+      "outputs": [
+        "[vx1]"
+      ],
+      "inputs": [],
+      "pos": {
+        "x": 80,
+        "y": 40
+      }
+    },
+    {
+      "id": "io_2",
+      "df_id": 25,
+      "block_type": "ramses_in",
+      "label": "RAMSES Input",
+      "color": "#06b6d4",
+      "args": {
+        "name": "vy1"
+      },
+      "outputs": [
+        "[vy1]"
+      ],
+      "inputs": [],
+      "pos": {
+        "x": 80,
+        "y": 142
+      }
+    },
+    {
+      "id": "io_3",
+      "df_id": 26,
+      "block_type": "ramses_in",
+      "label": "RAMSES Input",
+      "color": "#06b6d4",
+      "args": {
+        "name": "vx2"
+      },
+      "outputs": [
+        "[vx2]"
+      ],
+      "inputs": [],
+      "pos": {
+        "x": 80,
+        "y": 244
+      }
+    },
+    {
+      "id": "io_4",
+      "df_id": 27,
+      "block_type": "ramses_in",
+      "label": "RAMSES Input",
+      "color": "#06b6d4",
+      "args": {
+        "name": "vy2"
+      },
+      "outputs": [
+        "[vy2]"
+      ],
+      "inputs": [],
+      "pos": {
+        "x": 80,
+        "y": 346
+      }
+    },
+    {
+      "id": "io_5",
+      "df_id": 28,
+      "block_type": "ramses_out",
+      "label": "RAMSES Output",
+      "color": "#f59e0b",
+      "args": {
+        "name": "ix1"
+      },
+      "outputs": [],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 2780,
+        "y": 672
+      }
+    },
+    {
+      "id": "io_6",
+      "df_id": 29,
+      "block_type": "ramses_out",
+      "label": "RAMSES Output",
+      "color": "#f59e0b",
+      "args": {
+        "name": "iy1"
+      },
+      "outputs": [],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 2780,
+        "y": 1202
+      }
+    },
+    {
+      "id": "io_7",
+      "df_id": 30,
+      "block_type": "ramses_out",
+      "label": "RAMSES Output",
+      "color": "#f59e0b",
+      "args": {
+        "name": "ix2"
+      },
+      "outputs": [],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 2780,
+        "y": 40
+      }
+    },
+    {
+      "id": "io_8",
+      "df_id": 31,
+      "block_type": "ramses_out",
+      "label": "RAMSES Output",
+      "color": "#f59e0b",
+      "args": {
+        "name": "iy2"
+      },
+      "outputs": [],
+      "inputs": [
+        null
+      ],
+      "pos": {
+        "x": 2780,
+        "y": 570
+      }
+    }
+  ],
+  "wires": [
+    {
+      "from_node": "15",
+      "from_port": "output_1",
+      "to_node": "1",
+      "to_port": "input_1",
+      "signal_name": "V1d"
+    },
+    {
+      "from_node": "12",
+      "from_port": "output_1",
+      "to_node": "1",
+      "to_port": "input_2",
+      "signal_name": "alpha"
+    },
+    {
+      "from_node": "9",
+      "from_port": "output_1",
+      "to_node": "1",
+      "to_port": "input_3",
+      "signal_name": "Id"
+    },
+    {
+      "from_node": "12",
+      "from_port": "output_1",
+      "to_node": "2",
+      "to_port": "input_1",
+      "signal_name": "alpha"
+    },
+    {
+      "from_node": "9",
+      "from_port": "output_1",
+      "to_node": "2",
+      "to_port": "input_2",
+      "signal_name": "Id"
+    },
+    {
+      "from_node": "15",
+      "from_port": "output_1",
+      "to_node": "2",
+      "to_port": "input_3",
+      "signal_name": "V1d"
+    },
+    {
+      "from_node": "2",
+      "from_port": "output_1",
+      "to_node": "3",
+      "to_port": "input_3",
+      "signal_name": "mur"
+    },
+    {
+      "from_node": "12",
+      "from_port": "output_1",
+      "to_node": "3",
+      "to_port": "input_4",
+      "signal_name": "alpha"
+    },
+    {
+      "from_node": "1",
+      "from_port": "output_1",
+      "to_node": "3",
+      "to_port": "input_5",
+      "signal_name": "Vdr"
+    },
+    {
+      "from_node": "9",
+      "from_port": "output_1",
+      "to_node": "3",
+      "to_port": "input_6",
+      "signal_name": "Id"
+    },
+    {
+      "from_node": "15",
+      "from_port": "output_1",
+      "to_node": "3",
+      "to_port": "input_7",
+      "signal_name": "V1d"
+    },
+    {
+      "from_node": "2",
+      "from_port": "output_1",
+      "to_node": "4",
+      "to_port": "input_3",
+      "signal_name": "mur"
+    },
+    {
+      "from_node": "12",
+      "from_port": "output_1",
+      "to_node": "4",
+      "to_port": "input_4",
+      "signal_name": "alpha"
+    },
+    {
+      "from_node": "1",
+      "from_port": "output_1",
+      "to_node": "4",
+      "to_port": "input_5",
+      "signal_name": "Vdr"
+    },
+    {
+      "from_node": "9",
+      "from_port": "output_1",
+      "to_node": "4",
+      "to_port": "input_6",
+      "signal_name": "Id"
+    },
+    {
+      "from_node": "15",
+      "from_port": "output_1",
+      "to_node": "4",
+      "to_port": "input_7",
+      "signal_name": "V1d"
+    },
+    {
+      "from_node": "17",
+      "from_port": "output_1",
+      "to_node": "5",
+      "to_port": "input_1",
+      "signal_name": "V2d"
+    },
+    {
+      "from_node": "13",
+      "from_port": "output_1",
+      "to_node": "5",
+      "to_port": "input_2",
+      "signal_name": "gamma"
+    },
+    {
+      "from_node": "9",
+      "from_port": "output_1",
+      "to_node": "5",
+      "to_port": "input_3",
+      "signal_name": "Id"
+    },
+    {
+      "from_node": "13",
+      "from_port": "output_1",
+      "to_node": "6",
+      "to_port": "input_1",
+      "signal_name": "gamma"
+    },
+    {
+      "from_node": "9",
+      "from_port": "output_1",
+      "to_node": "6",
+      "to_port": "input_2",
+      "signal_name": "Id"
+    },
+    {
+      "from_node": "17",
+      "from_port": "output_1",
+      "to_node": "6",
+      "to_port": "input_3",
+      "signal_name": "V2d"
+    },
+    {
+      "from_node": "6",
+      "from_port": "output_1",
+      "to_node": "7",
+      "to_port": "input_3",
+      "signal_name": "mui"
+    },
+    {
+      "from_node": "13",
+      "from_port": "output_1",
+      "to_node": "7",
+      "to_port": "input_4",
+      "signal_name": "gamma"
+    },
+    {
+      "from_node": "5",
+      "from_port": "output_1",
+      "to_node": "7",
+      "to_port": "input_5",
+      "signal_name": "Vdi"
+    },
+    {
+      "from_node": "9",
+      "from_port": "output_1",
+      "to_node": "7",
+      "to_port": "input_6",
+      "signal_name": "Id"
+    },
+    {
+      "from_node": "17",
+      "from_port": "output_1",
+      "to_node": "7",
+      "to_port": "input_7",
+      "signal_name": "V2d"
+    },
+    {
+      "from_node": "6",
+      "from_port": "output_1",
+      "to_node": "8",
+      "to_port": "input_3",
+      "signal_name": "mui"
+    },
+    {
+      "from_node": "13",
+      "from_port": "output_1",
+      "to_node": "8",
+      "to_port": "input_4",
+      "signal_name": "gamma"
+    },
+    {
+      "from_node": "5",
+      "from_port": "output_1",
+      "to_node": "8",
+      "to_port": "input_5",
+      "signal_name": "Vdi"
+    },
+    {
+      "from_node": "9",
+      "from_port": "output_1",
+      "to_node": "8",
+      "to_port": "input_6",
+      "signal_name": "Id"
+    },
+    {
+      "from_node": "17",
+      "from_port": "output_1",
+      "to_node": "8",
+      "to_port": "input_7",
+      "signal_name": "V2d"
+    },
+    {
+      "from_node": "1",
+      "from_port": "output_1",
+      "to_node": "9",
+      "to_port": "input_1",
+      "signal_name": "Vdr"
+    },
+    {
+      "from_node": "5",
+      "from_port": "output_1",
+      "to_node": "9",
+      "to_port": "input_2",
+      "signal_name": "Vdi"
+    },
+    {
+      "from_node": "1",
+      "from_port": "output_1",
+      "to_node": "10",
+      "to_port": "input_1",
+      "signal_name": "Vdr"
+    },
+    {
+      "from_node": "10",
+      "from_port": "output_1",
+      "to_node": "11",
+      "to_port": "input_1",
+      "signal_name": "Ides"
+    },
+    {
+      "from_node": "11",
+      "from_port": "output_1",
+      "to_node": "12",
+      "to_port": "input_1",
+      "signal_name": "Iord"
+    },
+    {
+      "from_node": "9",
+      "from_port": "output_1",
+      "to_node": "12",
+      "to_port": "input_2",
+      "signal_name": "Id"
+    },
+    {
+      "from_node": "5",
+      "from_port": "output_1",
+      "to_node": "13",
+      "to_port": "input_1",
+      "signal_name": "Vdi"
+    },
+    {
+      "from_node": "9",
+      "from_port": "output_1",
+      "to_node": "13",
+      "to_port": "input_2",
+      "signal_name": "Id"
+    },
+    {
+      "from_node": "14",
+      "from_port": "output_1",
+      "to_node": "15",
+      "to_port": "input_1",
+      "signal_name": "V1"
+    },
+    {
+      "from_node": "16",
+      "from_port": "output_1",
+      "to_node": "17",
+      "to_port": "input_1",
+      "signal_name": "V2"
+    },
+    {
+      "from_node": "3",
+      "from_port": "output_1",
+      "to_node": "18",
+      "to_port": "input_2",
+      "signal_name": "ix1"
+    },
+    {
+      "from_node": "4",
+      "from_port": "output_1",
+      "to_node": "18",
+      "to_port": "input_4",
+      "signal_name": "iy1"
+    },
+    {
+      "from_node": "4",
+      "from_port": "output_1",
+      "to_node": "19",
+      "to_port": "input_2",
+      "signal_name": "iy1"
+    },
+    {
+      "from_node": "3",
+      "from_port": "output_1",
+      "to_node": "19",
+      "to_port": "input_4",
+      "signal_name": "ix1"
+    },
+    {
+      "from_node": "7",
+      "from_port": "output_1",
+      "to_node": "20",
+      "to_port": "input_2",
+      "signal_name": "ix2"
+    },
+    {
+      "from_node": "8",
+      "from_port": "output_1",
+      "to_node": "20",
+      "to_port": "input_4",
+      "signal_name": "iy2"
+    },
+    {
+      "from_node": "8",
+      "from_port": "output_1",
+      "to_node": "21",
+      "to_port": "input_2",
+      "signal_name": "iy2"
+    },
+    {
+      "from_node": "7",
+      "from_port": "output_1",
+      "to_node": "21",
+      "to_port": "input_4",
+      "signal_name": "ix2"
+    },
+    {
+      "from_node": "12",
+      "from_port": "output_1",
+      "to_node": "22",
+      "to_port": "input_2",
+      "signal_name": "alpha"
+    },
+    {
+      "from_node": "13",
+      "from_port": "output_1",
+      "to_node": "23",
+      "to_port": "input_2",
+      "signal_name": "gamma"
+    },
+    {
+      "from_node": "io_1",
+      "from_port": "output_1",
+      "to_node": "3",
+      "to_port": "input_2",
+      "signal_name": "[vx1]"
+    },
+    {
+      "from_node": "io_1",
+      "from_port": "output_1",
+      "to_node": "4",
+      "to_port": "input_1",
+      "signal_name": "[vx1]"
+    },
+    {
+      "from_node": "io_1",
+      "from_port": "output_1",
+      "to_node": "14",
+      "to_port": "input_1",
+      "signal_name": "[vx1]"
+    },
+    {
+      "from_node": "io_1",
+      "from_port": "output_1",
+      "to_node": "18",
+      "to_port": "input_1",
+      "signal_name": "[vx1]"
+    },
+    {
+      "from_node": "io_1",
+      "from_port": "output_1",
+      "to_node": "19",
+      "to_port": "input_1",
+      "signal_name": "[vx1]"
+    },
+    {
+      "from_node": "io_2",
+      "from_port": "output_1",
+      "to_node": "3",
+      "to_port": "input_1",
+      "signal_name": "[vy1]"
+    },
+    {
+      "from_node": "io_2",
+      "from_port": "output_1",
+      "to_node": "4",
+      "to_port": "input_2",
+      "signal_name": "[vy1]"
+    },
+    {
+      "from_node": "io_2",
+      "from_port": "output_1",
+      "to_node": "14",
+      "to_port": "input_2",
+      "signal_name": "[vy1]"
+    },
+    {
+      "from_node": "io_2",
+      "from_port": "output_1",
+      "to_node": "18",
+      "to_port": "input_3",
+      "signal_name": "[vy1]"
+    },
+    {
+      "from_node": "io_2",
+      "from_port": "output_1",
+      "to_node": "19",
+      "to_port": "input_3",
+      "signal_name": "[vy1]"
+    },
+    {
+      "from_node": "io_3",
+      "from_port": "output_1",
+      "to_node": "7",
+      "to_port": "input_1",
+      "signal_name": "[vx2]"
+    },
+    {
+      "from_node": "io_3",
+      "from_port": "output_1",
+      "to_node": "8",
+      "to_port": "input_1",
+      "signal_name": "[vx2]"
+    },
+    {
+      "from_node": "io_3",
+      "from_port": "output_1",
+      "to_node": "16",
+      "to_port": "input_1",
+      "signal_name": "[vx2]"
+    },
+    {
+      "from_node": "io_3",
+      "from_port": "output_1",
+      "to_node": "20",
+      "to_port": "input_1",
+      "signal_name": "[vx2]"
+    },
+    {
+      "from_node": "io_3",
+      "from_port": "output_1",
+      "to_node": "21",
+      "to_port": "input_1",
+      "signal_name": "[vx2]"
+    },
+    {
+      "from_node": "io_4",
+      "from_port": "output_1",
+      "to_node": "7",
+      "to_port": "input_2",
+      "signal_name": "[vy2]"
+    },
+    {
+      "from_node": "io_4",
+      "from_port": "output_1",
+      "to_node": "8",
+      "to_port": "input_2",
+      "signal_name": "[vy2]"
+    },
+    {
+      "from_node": "io_4",
+      "from_port": "output_1",
+      "to_node": "16",
+      "to_port": "input_2",
+      "signal_name": "[vy2]"
+    },
+    {
+      "from_node": "io_4",
+      "from_port": "output_1",
+      "to_node": "20",
+      "to_port": "input_3",
+      "signal_name": "[vy2]"
+    },
+    {
+      "from_node": "io_4",
+      "from_port": "output_1",
+      "to_node": "21",
+      "to_port": "input_3",
+      "signal_name": "[vy2]"
+    },
+    {
+      "from_node": "3",
+      "from_port": "output_1",
+      "to_node": "io_5",
+      "to_port": "input_1",
+      "signal_name": "ix1"
+    },
+    {
+      "from_node": "4",
+      "from_port": "output_1",
+      "to_node": "io_6",
+      "to_port": "input_1",
+      "signal_name": "iy1"
+    },
+    {
+      "from_node": "7",
+      "from_port": "output_1",
+      "to_node": "io_7",
+      "to_port": "input_1",
+      "signal_name": "ix2"
+    },
+    {
+      "from_node": "8",
+      "from_port": "output_1",
+      "to_node": "io_8",
+      "to_port": "input_1",
+      "signal_name": "iy2"
+    }
+  ],
+  "canvas_meta": {}
+}

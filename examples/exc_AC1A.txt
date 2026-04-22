@@ -1,0 +1,110 @@
+exc
+AC1A
+
+%data
+
+Kv
+Rc
+Xc
+TR
+KA
+TA
+TB
+TC
+VAMAX
+VAMIN
+KE
+TE
+KF
+TF
+VRMAX
+VRMIN
+VE1
+SE1
+VE2
+SE2
+KC
+KD
+VUEL
+
+%parameters
+
+VE0        = vinrectif([if],[vf],{KC})
+VFE0       = {KD}*[if]+({KE}+satur({VE0},{VE1},{SE1},{VE2},{SE2}))*{VE0}
+VREF       = vcomp([v],[p],[q],{Kv},{Rc},{Xc})+({VFE0}/{KA})
+VOEL       = 99999
+
+%states
+
+Vc1        = vcomp([v],[p],[q],{Kv},{Rc},{Xc})
+Vc         = [Vc1]
+VRminusVFE = 0.d0
+VR         = {VFE0}
+V4         = [VR]
+V3         = [VR]
+V2         = [VR]
+V1         = [V2]/{KA}
+deltaV     = [V1]
+VE         = {VE0}
+VFE        = {VFE0}
+VF         = 0.d0
+
+%observables
+
+VR
+vf
+
+%models
+
+& algeq                    line drop compensation
+[Vc1]-vcomp([v],[p],[q],{Kv},{Rc},{Xc})
+& tf1p                     voltage measurement time constant
+Vc1
+Vc
+1.d0
+{TR}
+& algeq                    summation point of AVR
+{VREF}-[Vc]-[VF]-[deltaV]
+& tf1p1z                   lead-lag
+deltaV
+V1
+1.d0
+{TC}
+{TB}
+& tf1plim                  amplifier
+V1
+V2
+{KA}
+{TA}
+{VAMIN}
+{VAMAX}
+& max1v1c                  HV gate of UEL
+V2
+V3
+{VUEL}
+& min1v1c                    LV gate of OEL
+V3
+V4
+{VOEL}
+& lim                      limiter
+V4
+VR
+{VRMIN}
+{VRMAX}
+& algeq                    input of exciter integrator
+[VRminusVFE]-[VR]+[VFE]
+& inlim                    exciter integrator
+VRminusVFE
+VE
+{TE}
+0.d0
+9999.d0
+& algeq                    VFE function of if and ve
+{KD}*[if]+({KE}+satur([VE],{VE1},{SE1},{VE2},{SE2}))*[VE]-[VFE]
+& algeq                    vf function of VE and if
+[vf]-vrectif([if],[VE],{KC})
+& tfder1p                  derivative feedback
+VFE
+VF
+({KF}/{TF})
+{TF}

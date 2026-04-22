@@ -512,3 +512,84 @@ select:focus, input:focus { border-color: var(--accent); }
 ::-webkit-scrollbar-track       { background:var(--bg2); }
 ::-webkit-scrollbar-thumb       { background:var(--border); border-radius:3px; }
 ::-webkit-scrollbar-thumb:hover { background:var(--muted); }
+
+/* ── Issues panel ───────────────────────────────────────────── */
+#issues-wrap {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+}
+#issues-wrap.collapsed #issues-list { display: none; }
+#issues-wrap.collapsed { max-height: 30px; }
+#issues-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--bg3);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+#issues-header:hover { color: var(--text); }
+#issues-header .ih-caret { transition: transform .15s; font-size: 9px; }
+#issues-wrap:not(.collapsed) #issues-header .ih-caret { transform: rotate(90deg); }
+#issues-wrap.has-errors   #issues-title { color: var(--danger); }
+#issues-wrap.has-warnings #issues-title { color: var(--warning); }
+#issues-wrap.no-issues    #issues-title { color: var(--success); }
+#issues-list {
+  overflow-y: auto;
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+.issue-row {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  line-height: 1.35;
+}
+.issue-row + .issue-row { margin-top: 2px; }
+.issue-row:hover { background: var(--bg3); }
+.issue-level {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 2px;
+  letter-spacing: .05em;
+}
+.issue-error   .issue-level { background: var(--danger);  color: #fff; }
+.issue-warning .issue-level { background: var(--warning); color: #000; }
+.issue-msg     { color: var(--text); word-break: break-word; }
+.issue-block   { color: var(--muted); font-family: ui-monospace, monospace; }
+.issue-none    { color: var(--success); padding: 4px 6px; font-size: 11px; }
+
+/* ── Splitter handles ───────────────────────────────────────── */
+.splitter {
+  flex-shrink: 0;
+  background: var(--border);
+  transition: background .12s;
+  user-select: none;
+}
+.splitter:hover,
+.splitter.dragging { background: var(--accent); }
+.v-splitter { width: 4px;  cursor: col-resize; }   /* horizontal drag */
+.h-splitter { height: 4px; cursor: row-resize; }   /* vertical drag   */
+
+/* ── Wire signal name labels ────────────────────────────────── */
+svg.connection text.wire-label {
+  fill: var(--text);
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  user-select: none;
+}

@@ -75,7 +75,12 @@ def emit_dsl(project: dict[str, Any], blocks_path: str | None = None) -> str:
     out.append("")
     for block in project.get("blocks", []):
         block_name = block["blockType"]
-        comment = block.get("comment", "")
+        comment = (block.get("comment") or "").strip()
+        # Plain text typed in the inspector becomes a valid DSL comment by
+        # prepending `!` when the user hasn't already done so. Already-prefixed
+        # comments (round-tripped from a parsed DSL) are passed through.
+        if comment and not comment.startswith("!"):
+            comment = f"! {comment}"
         comment_col = f"  {comment}" if comment else ""
         out.append(f"& {block_name}{comment_col}")
 

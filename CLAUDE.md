@@ -32,23 +32,27 @@ CI runs pytest on Python 3.10–3.12 via GitHub Actions (`.github/workflows/ci.y
 
 ## Architecture
 
-### Backend (`server/`)
+### Backend (`src/cg_studio/`)
 
-- **`app.py`** — FastAPI server. API routes registered before static file mount (SPA fallback). Key endpoints: `POST /parse`, `POST /emit`, `POST /run_codegen`, `GET /blocks`, `GET/PUT /config`.
-- **`dsl_parser.py`** — Converts DSL `.txt` → `ModelProject` dict. The critical `_parse_blocks()` method counts argument lines by looking up block name in `blocks.json` to determine `len(dsl_lines)`. Maps positional lines to template tokens (`{{input}}`, `{{output}}`, `{{K}}`, etc.).
-- **`dsl_emitter.py`** — Inverse of parser: `ModelProject` dict → DSL `.txt`. Expects blocks in topologically-sorted order (frontend must sort before calling `/emit`).
+- **`app.py`** — FastAPI server. API routes registered before static file mount (SPA fallback). Key endpoints: `POST /parse`, `POST /emit`, `POST /run_codegen`, `GET /blocks`, `GET /mandatory_outputs`, `GET /ramses_inputs`, `GET /ramses_reserved`, `GET/PUT /config`.
+- **`dsl_parser.py`** — Converts DSL `.txt` → `ModelProject` dict. The critical `_parse_blocks()` method counts argument lines by looking up block name in `blocks.json` to determine `len(dsl_lines)`. Maps positional lines to template tokens (`{{input}}`, `{{output}}`, `{{K}}`, etc.). Exposes three name dicts: `RAMSES_INPUT_STATES` (palette-visible inputs), `MANDATORY_OUTPUTS`, and `RAMSES_INPUTS` (full reserved-name list incl. `if` for exc).
+- **`dsl_emitter.py`** — Inverse of parser: `ModelProject` dict → DSL `.txt`. Expects blocks in topologically-sorted order (frontend must sort before calling `/emit`). Normalises block comments to start with `!`.
 - **`config.json`** — Runtime config (codegen binary path, workspace dir, host, port).
 
-### Frontend (`frontend/`)
+### Frontend (`src/cg_studio/frontend/`)
 
-Vanilla JS SPA, no build step. Drawflow (canvas) and CodeMirror 6 (DSL preview) loaded from CDN.
+Vanilla JS SPA, no build step. Drawflow (canvas) loaded from CDN.
 
 - **`store.js`** — Canonical `ModelProject` state, Kahn's topological sort, undo/redo (60-step ring buffer), event bus.
-- **`canvas.js`** — Drawflow integration, drag-from-sidebar, port connections → signal assignment, Sugiyama auto-layout algorithm.
-- **`main.js`** — App bootstrap, toolbar handlers, keyboard shortcuts (Ctrl+Z/Y/S), file I/O, Settings modal.
-- **`forms.js`** — Right-panel tabs: model metadata, data/params/states/observables tables, block properties form.
-- **`palette.js`** — Block palette UI grouped by category with search filter.
-- **`dsl_preview.js`** — Debounced (600ms) live DSL preview using CodeMirror.
+- **`canvas.js`** — Drawflow integration, drag-from-sidebar, port connections → signal assignment, Sugiyama auto-layout (height-aware stacking), dynamic algeq input/output ports, SVG wire labels, node-rebuild on inspector expr edit, Fit-to-view with 50%-origin-aware math.
+- **`project_adapter.js`** — Translates the backend's parsed DSL shape into the frontend Store shape. Two-phase algeq classification: pick outputs first (honouring user-declared `args.output_states`, mandatory outputs, then fewest-peer heuristic; reserved names like `if` are never promoted), then classify inputs against the complete producer index. Auto-seeds `ramses_in`/`ramses_out` pseudo-nodes for used RAMSES I/O.
+- **`palette.js`** — Block palette UI grouped by category with search filter. Synthesises a dynamic "I/O (`modelType`)" category with per-signal draggable pins.
+- **`main.js`** — App bootstrap, toolbar handlers, keyboard shortcuts (Ctrl+Z/Y/S), file I/O, Settings modal, New-model type picker, RAMSES-I/O seeding on "New", floating-state warnings on load / export gate.
+- **`forms.js`** — Right-panel tabs: model metadata; per-block inspector (output-signal rename + cascading wire updates, algeq single Expression field + Output states, Comment field on every block).
+- **`dsl_preview.js`** — Debounced (600ms) live DSL preview.
+- **`validate.js`** — `Validate.findFloatingStateIssues(proj)` — detects state literals that should be wires.
+- **`check_model.js`** — `CheckModel.run(proj, opts)` — the full set of structural checks driven by the toolbar Check Model (✓) button. Renders into the permanent Issues panel in the right sidebar.
+- **`resizers.js`** — Click-and-drag splitters for the right sidebar and bottom meta panel; sizes persisted in `localStorage`.
 - **`api.js`** — `fetch()` wrappers for backend endpoints.
 
 ### Key Data Flow
@@ -107,12 +111,16 @@ name = init_expr     ← ! comments allowed; mandatory outputs (vf/tm/ix/iy) are
 
 ### Model Types — Inputs and Mandatory Outputs
 
-| Type | Input Variables | Mandatory Outputs |
-|------|----------------|-------------------|
-| `exc` | `v`, `p`, `q`, `omega`, `if`, `vf` | `vf` |
-| `tor` | `p`, `omega`, `tm` | `tm` |
-| `inj` | `vx`, `vy`, `omega`, `ix`, `iy` | `ix`, `iy` |
-| `twop` | `vx1`, `vy1`, `vx2`, `vy2`, `omega1`, `omega2`, `ix1`, `iy1`, `ix2`, `iy2` | `ix1`, `iy1`, `ix2`, `iy2` |
+The palette's **I/O (`modelType`)** category exposes per-signal pins driven by `RAMSES_INPUT_STATES` (inputs) and `MANDATORY_OUTPUTS` (outputs). The user-facing list below reflects what the palette shows and what `btn-new` seeds on a fresh model. Note `if` is a RAMSES-reserved name (can appear in DSL expressions) but is **not** a palette input — the user guide's Table 5.3 incorrectly listed it.
+
+| Type | Palette Inputs | Mandatory Outputs | Extra reserved (not in palette) |
+|------|---------------|-------------------|--------------------------------|
+| `exc` | `v`, `p`, `q`, `omega` | `vf` | `if` |
+| `tor` | `p`, `omega` | `tm` | — |
+| `inj` | `vx`, `vy`, `omega` | `ix`, `iy` | — |
+| `twop` | `vx1`, `vy1`, `vx2`, `vy2`, `omega1`, `omega2` | `ix1`, `iy1`, `ix2`, `iy2` | — |
+
+The full reserved-name list (which cannot be used for internal states) is the union of the three columns and is exposed via `GET /ramses_reserved`.
 
 Reserved data names: `{sbase}` (inj), `{sbase1}`/`{sbase2}` (twop).
 
@@ -159,6 +167,20 @@ For `switch2/3/4/5`, DSL line order is: input states, then control selector (rea
 ...
 ##
 ```
+
+## Interactive Features
+
+### Check Model (toolbar ✓ button)
+Runs structural validation via `CheckModel.run()` and displays the report in the permanent Issues panel in the right sidebar. Categories include missing mandatory outputs, missing/disconnected RAMSES I/O per model type, disconnected input ports, floating state references, undeclared parameters / states, and uninitialised `%parameters`/`%states`.
+
+### Floating-state detection (on load / export)
+`Validate.findFloatingStateIssues()` runs on DSL & project load (warning toast) and on Export DSL (blocking modal with "Export Anyway"). It flags any state literal sitting on a port of block A while the same state is referenced by another block — i.e. a wire is missing.
+
+### Algeq semantics
+Algeq blocks have **0 outputs** by default; the inspector exposes an **Output states (comma-separated)** field that promotes any listed state to an output pin. On DSL load the adapter auto-picks at most one (priority: mandatory RAMSES output → state referenced by the fewest peers; reserved names like `if` are never promoted), stores the choice in `args.output_states`, and creates the corresponding wires. Editing the expression in the inspector rebuilds the node's connectors live.
+
+### RAMSES I/O pseudo-nodes
+`ramses_in` / `ramses_out` are visual-only block types (skipped by the emitter) that surface model-type inputs/outputs on the canvas. They are auto-seeded on "New" and on DSL load, and auto-wired to every block that references the corresponding state.
 
 ## Design Document
 
