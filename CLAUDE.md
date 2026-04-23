@@ -11,10 +11,10 @@ Four model types: `exc` (excitation), `tor` (torque), `inj` (injector), `twop` (
 ## Commands
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies (dev extras include pytest + Playwright)
+pip install -e ".[dev]"
 
-# Run all tests (~75 tests)
+# Run all tests (~140 tests)
 pytest tests/ -v
 
 # Run specific test files
@@ -25,7 +25,8 @@ pytest tests/test_api.py -v
 pytest tests/test_parser.py::test_function_name -v
 
 # Start server (http://localhost:8765)
-python server/app.py
+cg-studio                 # console script, opens browser
+python -m cg_studio       # equivalent module form
 ```
 
 CI runs pytest on Python 3.10–3.12 via GitHub Actions (`.github/workflows/ci.yml`).
@@ -37,7 +38,8 @@ CI runs pytest on Python 3.10–3.12 via GitHub Actions (`.github/workflows/ci.y
 - **`app.py`** — FastAPI server. API routes registered before static file mount (SPA fallback). Key endpoints: `POST /parse`, `POST /emit`, `POST /run_codegen`, `GET /blocks`, `GET /mandatory_outputs`, `GET /ramses_inputs`, `GET /ramses_reserved`, `GET/PUT /config`.
 - **`dsl_parser.py`** — Converts DSL `.txt` → `ModelProject` dict. The critical `_parse_blocks()` method counts argument lines by looking up block name in `blocks.json` to determine `len(dsl_lines)`. Maps positional lines to template tokens (`{{input}}`, `{{output}}`, `{{K}}`, etc.). Exposes three name dicts: `RAMSES_INPUT_STATES` (palette-visible inputs), `MANDATORY_OUTPUTS`, and `RAMSES_INPUTS` (full reserved-name list incl. `if` for exc).
 - **`dsl_emitter.py`** — Inverse of parser: `ModelProject` dict → DSL `.txt`. Expects blocks in topologically-sorted order (frontend must sort before calling `/emit`). Normalises block comments to start with `!`.
-- **`config.json`** — Runtime config (codegen binary path, workspace dir, host, port).
+- **`config.py`** — Platform-aware config store. Reads/writes `config.json` under `%LOCALAPPDATA%\cg-studio\` (Windows) or `~/.config/cg-studio/` (Linux/macOS). Keys: codegen binary path, workspace dir, host, port.
+- **`cli.py`** — `cg-studio` console script entry point (argparse: `--port`, `--host`, `--no-browser`).
 
 ### Frontend (`src/cg_studio/frontend/`)
 
@@ -64,7 +66,7 @@ Vanilla JS SPA, no build step. Drawflow (canvas) loaded from CDN.
 
 ### Block Catalogue (`frontend/blocks.json`)
 
-51 blocks across categories (Transfer Functions, Limiters, Controllers, etc.). Each entry defines `dsl_lines` templates, `args` schema, `inputs`/`outputs`, and `category`. **Extending: add a JSON entry here — no code changes needed.**
+54 blocks across categories (Transfer Functions, Limiters, Controllers, etc.). Each entry defines `dsl_lines` templates, `args` schema, `inputs`/`outputs`, and `category`. **Extending: add a JSON entry here — no code changes needed.**
 
 Template tokens in `dsl_lines`: `{{input}}`, `{{input1}}`/`{{input2}}` (multi-input), `{{output}}`, `{{NAME}}` (named args).
 

@@ -25,7 +25,7 @@ The tool supports all four CODEGEN model types:
 
 ## Key Features
 
-- **Drag-and-drop block diagram editor** — assemble models visually on a canvas with 51 built-in blocks
+- **Drag-and-drop block diagram editor** — assemble models visually on a canvas with 54 built-in blocks
 - **Live DSL preview** — syntax-highlighted code updates in real time as you edit
 - **Lossless round-trip** — import existing `.txt` DSL files with automatic canvas layout, edit, and re-export
 - **One-click Fortran generation** — run the `codegen` binary directly from the browser
@@ -117,8 +117,8 @@ stepss-cg-studio/
 │       ├── index.html
 │       ├── css/style.css
 │       ├── js/                 # Vanilla JS modules
-│       └── blocks.json         # Block catalogue (51 blocks, extend here)
-├── tests/                      # Pytest test suite (~80 tests)
+│       └── blocks.json         # Block catalogue (54 blocks, extend here)
+├── tests/                      # Pytest test suite (~140 tests)
 ├── examples/                   # Example .cgproj project files
 ├── docs/                       # Design documents
 ├── run.bat                     # Windows dev launcher

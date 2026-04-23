@@ -134,24 +134,12 @@
     "dsl_lines": [
       "{{input}}",
       "{{output}}",
-      "{{K}}",
-      "{{T}}",
       "{{lo_var}}",
-      "{{hi_var}}"
+      "{{hi_var}}",
+      "{{K}}",
+      "{{T}}"
     ],
     "args": [
-      {
-        "name": "K",
-        "label": "Gain K",
-        "type": "expr",
-        "default": "1."
-      },
-      {
-        "name": "T",
-        "label": "Time constant T",
-        "type": "expr",
-        "default": "1."
-      },
       {
         "name": "lo_var",
         "label": "Lower limit (state)",
@@ -163,6 +151,18 @@
         "label": "Upper limit (state)",
         "type": "state",
         "default": ""
+      },
+      {
+        "name": "K",
+        "label": "Gain K",
+        "type": "expr",
+        "default": "1."
+      },
+      {
+        "name": "T",
+        "label": "Time constant T",
+        "type": "expr",
+        "default": "1."
       }
     ]
   },
@@ -625,15 +625,15 @@
     ]
   },
   "invlim": {
-    "label": "Inverse Limiter",
+    "label": "Integrator + Variable Limits",
     "category": "Limiters",
-    "description": "Inverse limiter with time constant",
-    "inputs": ["u"],
+    "description": "Integrator with time constant T and non-windup limits. Both lower and upper limits are state variables. DSL order: input, lo_var, hi_var, output, T.",
+    "inputs": ["u", "lo_var", "hi_var"],
     "outputs": ["y"],
     "color": "#d97706",
-    "dsl_lines": ["{{input}}", "{{lo}}", "{{hi_var}}", "{{output}}", "{{T}}"],
+    "dsl_lines": ["{{input}}", "{{lo_var}}", "{{hi_var}}", "{{output}}", "{{T}}"],
     "args": [
-      {"name": "lo",     "label": "Lower limit (const)", "type": "expr",  "default": "0."},
+      {"name": "lo_var", "label": "Lower limit (state)", "type": "state", "default": ""},
       {"name": "hi_var", "label": "Upper limit (state)", "type": "state", "default": ""},
       {"name": "T",      "label": "Time constant T",     "type": "expr",  "default": "1."}
     ]
@@ -641,12 +641,14 @@
   "int": {
     "label": "Integrator",
     "category": "Controllers",
-    "description": "Pure integrator: dy/dt = u",
+    "description": "Integrator with positive time constant T: T·dy/dt = u. T must be non-zero.",
     "inputs": ["u"],
     "outputs": ["y"],
     "color": "#16a34a",
-    "dsl_lines": ["{{input}}", "{{output}}"],
-    "args": []
+    "dsl_lines": ["{{input}}", "{{output}}", "{{T}}"],
+    "args": [
+      {"name": "T", "label": "Time constant T", "type": "expr", "default": "1."}
+    ]
   },
   "pictl": {
     "label": "PI Controller",
@@ -677,18 +679,20 @@
     ]
   },
   "pictl2lim": {
-    "label": "PI Controller + 2 Limits",
+    "label": "PI Controller + Integral & Proportional Limits",
     "category": "Controllers",
-    "description": "PI controller with two-sided anti-windup limits",
+    "description": "PI controller with anti-windup limits on the integral term (ximin,ximax) AND on the proportional term (xpmin,xpmax).",
     "inputs": ["e"],
     "outputs": ["y"],
     "color": "#16a34a",
-    "dsl_lines": ["{{input}}", "{{output}}", "{{Ki}}", "{{Kp}}", "{{lo}}", "{{hi}}"],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{Ki}}", "{{Kp}}", "{{ximin}}", "{{ximax}}", "{{xpmin}}", "{{xpmax}}"],
     "args": [
-      {"name": "Ki", "label": "Integral gain Ki",     "type": "expr", "default": "1."},
-      {"name": "Kp", "label": "Proportional gain Kp", "type": "expr", "default": "1."},
-      {"name": "lo", "label": "Lower limit",           "type": "expr", "default": "0."},
-      {"name": "hi", "label": "Upper limit",           "type": "expr", "default": "1."}
+      {"name": "Ki",    "label": "Integral gain Ki",           "type": "expr", "default": "1."},
+      {"name": "Kp",    "label": "Proportional gain Kp",       "type": "expr", "default": "1."},
+      {"name": "ximin", "label": "Integral term lower limit",  "type": "expr", "default": "-9999."},
+      {"name": "ximax", "label": "Integral term upper limit",  "type": "expr", "default": "9999."},
+      {"name": "xpmin", "label": "Proportional term lower lim","type": "expr", "default": "-9999."},
+      {"name": "xpmax", "label": "Proportional term upper lim","type": "expr", "default": "9999."}
     ]
   },
   "pictlieee": {
@@ -767,118 +771,126 @@
     "args": []
   },
   "db": {
-    "label": "Deadband",
+    "label": "Asymmetric Deadband",
     "category": "Nonlinear",
-    "description": "Deadband: y = 0 if |x| < db, else y = x \u2213 db",
+    "description": "Piecewise-linear deadband with independent lower/upper thresholds (delta1,delta2), slopes (s1,s2) and offsets (a1,a2). y = a1 + s1*(x-delta1) for x<delta1; y = 0 in the deadband; y = a2 + s2*(x-delta2) for x>delta2.",
     "inputs": ["x"],
     "outputs": ["y"],
     "color": "#be185d",
-    "dsl_lines": ["{{input}}", "{{output}}", "{{db}}"],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{delta1}}", "{{s1}}", "{{a1}}", "{{delta2}}", "{{s2}}", "{{a2}}"],
     "args": [
-      {"name": "db", "label": "Deadband width", "type": "expr", "default": "0.05"}
+      {"name": "delta1", "label": "Lower threshold d1", "type": "expr", "default": "-0.05"},
+      {"name": "s1",     "label": "Lower slope s1",     "type": "expr", "default": "1."},
+      {"name": "a1",     "label": "Lower offset a1",    "type": "expr", "default": "0."},
+      {"name": "delta2", "label": "Upper threshold d2", "type": "expr", "default": "0.05"},
+      {"name": "s2",     "label": "Upper slope s2",     "type": "expr", "default": "1."},
+      {"name": "a2",     "label": "Upper offset a2",    "type": "expr", "default": "0."}
     ]
   },
   "hyst": {
     "label": "Hysteresis",
     "category": "Nonlinear",
-    "description": "Hysteresis switch block",
+    "description": "Hysteresis loop defined by two thresholds (xI rising, xD falling) and two (yB,yA) output pairs. z0 selects the initial branch when starting inside the deadband.",
     "inputs": ["x"],
     "outputs": ["y"],
     "color": "#be185d",
-    "dsl_lines": ["{{input}}", "{{output}}", "{{dead1}}", "{{out1}}", "{{dead2}}", "{{out2}}", "{{flag_init}}"],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{xI}}", "{{yIB}}", "{{yIA}}", "{{xD}}", "{{yDB}}", "{{yDA}}", "{{z0}}"],
     "args": [
-      {"name": "dead1",     "label": "Threshold 1 (rise)",    "type": "expr", "default": "0.5"},
-      {"name": "out1",      "label": "Output value 1",         "type": "expr", "default": "1."},
-      {"name": "dead2",     "label": "Threshold 2 (fall)",    "type": "expr", "default": "-0.5"},
-      {"name": "out2",      "label": "Output value 2",         "type": "expr", "default": "0."},
-      {"name": "flag_init", "label": "Initial flag (-1/0/1)", "type": "expr", "default": "-1"}
+      {"name": "xI",  "label": "Rising threshold xI",        "type": "expr", "default": "0.5"},
+      {"name": "yIB", "label": "y before rising (yIB)",      "type": "expr", "default": "0."},
+      {"name": "yIA", "label": "y after rising (yIA)",       "type": "expr", "default": "1."},
+      {"name": "xD",  "label": "Falling threshold xD",       "type": "expr", "default": "-0.5"},
+      {"name": "yDB", "label": "y before falling (yDB)",     "type": "expr", "default": "1."},
+      {"name": "yDA", "label": "y after falling (yDA)",      "type": "expr", "default": "0."},
+      {"name": "z0",  "label": "Initial branch z0 (>=0 upper, <0 lower)", "type": "expr", "default": "-1."}
     ]
   },
   "nint": {
-    "label": "Non-Windup Integrator",
+    "label": "Nearest Integer",
     "category": "Nonlinear",
-    "description": "Integrator with non-windup limits",
-    "inputs": ["u"],
+    "description": "y = nint(x + c) — integer nearest to the input shifted by a constant c",
+    "inputs": ["x"],
     "outputs": ["y"],
     "color": "#be185d",
-    "dsl_lines": ["{{input}}", "{{output}}", "{{lo}}", "{{hi}}"],
+    "dsl_lines": ["{{input}}", "{{output}}", "{{c}}"],
     "args": [
-      {"name": "lo", "label": "Lower limit", "type": "expr", "default": "0."},
-      {"name": "hi", "label": "Upper limit", "type": "expr", "default": "1."}
+      {"name": "c", "label": "Shift constant c", "type": "expr", "default": "0."}
     ]
   },
   "swsign": {
     "label": "Sign Switch",
     "category": "Nonlinear",
-    "description": "Multiplies input by sign(selector)",
-    "inputs": ["x", "sel"],
+    "description": "Output = x1 if sel >= 0, else x2. Switches between two input states based on sign of a third (controlling) input.",
+    "inputs": ["x1", "x2", "sel"],
     "outputs": ["y"],
     "color": "#be185d",
-    "dsl_lines": ["{{input}}", "{{selector}}", "{{output}}"],
+    "dsl_lines": ["{{x1}}", "{{x2}}", "{{sel}}", "{{output}}"],
     "args": [
-      {"name": "selector", "label": "Selector signal", "type": "state", "default": ""}
+      {"name": "x1",  "label": "Input 1", "type": "state", "default": ""},
+      {"name": "x2",  "label": "Input 2", "type": "state", "default": ""},
+      {"name": "sel", "label": "Selector (sign-control)", "type": "state", "default": ""}
     ]
   },
   "switch2": {
     "label": "Switch (2 inputs)",
     "category": "Nonlinear",
-    "description": "2-input selector: output = in[sel]",
-    "inputs": ["sel", "in1", "in2"],
+    "description": "Output = in[nint(sel)], clamped to 1..2. DSL order: in1, in2, sel, output. sel is registered as a mandatory output in Codegen tracking.",
+    "inputs": ["in1", "in2", "sel"],
     "outputs": ["y"],
     "color": "#be185d",
-    "dsl_lines": ["{{sel}}", "{{in1}}", "{{in2}}", "{{output}}"],
+    "dsl_lines": ["{{in1}}", "{{in2}}", "{{sel}}", "{{output}}"],
     "args": [
-      {"name": "sel", "label": "Selector signal", "type": "state", "default": ""},
-      {"name": "in1", "label": "Input 1",          "type": "state", "default": ""},
-      {"name": "in2", "label": "Input 2",          "type": "state", "default": ""}
+      {"name": "in1", "label": "Input 1",         "type": "state", "default": ""},
+      {"name": "in2", "label": "Input 2",         "type": "state", "default": ""},
+      {"name": "sel", "label": "Selector signal", "type": "state", "default": ""}
     ]
   },
   "switch3": {
     "label": "Switch (3 inputs)",
     "category": "Nonlinear",
-    "description": "3-input selector",
-    "inputs": ["sel", "in1", "in2", "in3"],
+    "description": "Output = in[nint(sel)], clamped to 1..3. DSL order: in1, in2, in3, sel, output. sel is registered as a mandatory output in Codegen tracking.",
+    "inputs": ["in1", "in2", "in3", "sel"],
     "outputs": ["y"],
     "color": "#be185d",
-    "dsl_lines": ["{{sel}}", "{{in1}}", "{{in2}}", "{{in3}}", "{{output}}"],
+    "dsl_lines": ["{{in1}}", "{{in2}}", "{{in3}}", "{{sel}}", "{{output}}"],
     "args": [
-      {"name": "sel", "label": "Selector", "type": "state", "default": ""},
       {"name": "in1", "label": "Input 1",  "type": "state", "default": ""},
       {"name": "in2", "label": "Input 2",  "type": "state", "default": ""},
-      {"name": "in3", "label": "Input 3",  "type": "state", "default": ""}
+      {"name": "in3", "label": "Input 3",  "type": "state", "default": ""},
+      {"name": "sel", "label": "Selector", "type": "state", "default": ""}
     ]
   },
   "switch4": {
     "label": "Switch (4 inputs)",
     "category": "Nonlinear",
-    "description": "4-input selector",
-    "inputs": ["sel", "in1", "in2", "in3", "in4"],
+    "description": "Output = in[nint(sel)], clamped to 1..4. DSL order: in1, in2, in3, in4, sel, output. sel is registered as a mandatory output in Codegen tracking.",
+    "inputs": ["in1", "in2", "in3", "in4", "sel"],
     "outputs": ["y"],
     "color": "#be185d",
-    "dsl_lines": ["{{sel}}", "{{in1}}", "{{in2}}", "{{in3}}", "{{in4}}", "{{output}}"],
+    "dsl_lines": ["{{in1}}", "{{in2}}", "{{in3}}", "{{in4}}", "{{sel}}", "{{output}}"],
     "args": [
-      {"name": "sel", "label": "Selector", "type": "state", "default": ""},
       {"name": "in1", "label": "Input 1",  "type": "state", "default": ""},
       {"name": "in2", "label": "Input 2",  "type": "state", "default": ""},
       {"name": "in3", "label": "Input 3",  "type": "state", "default": ""},
-      {"name": "in4", "label": "Input 4",  "type": "state", "default": ""}
+      {"name": "in4", "label": "Input 4",  "type": "state", "default": ""},
+      {"name": "sel", "label": "Selector", "type": "state", "default": ""}
     ]
   },
   "switch5": {
     "label": "Switch (5 inputs)",
     "category": "Nonlinear",
-    "description": "5-input selector",
-    "inputs": ["sel", "in1", "in2", "in3", "in4", "in5"],
+    "description": "Output = in[nint(sel)], clamped to 1..5. DSL order: in1, in2, in3, in4, in5, sel, output. sel is registered as a mandatory output in Codegen tracking.",
+    "inputs": ["in1", "in2", "in3", "in4", "in5", "sel"],
     "outputs": ["y"],
     "color": "#be185d",
-    "dsl_lines": ["{{sel}}", "{{in1}}", "{{in2}}", "{{in3}}", "{{in4}}", "{{in5}}", "{{output}}"],
+    "dsl_lines": ["{{in1}}", "{{in2}}", "{{in3}}", "{{in4}}", "{{in5}}", "{{sel}}", "{{output}}"],
     "args": [
-      {"name": "sel", "label": "Selector", "type": "state", "default": ""},
       {"name": "in1", "label": "Input 1",  "type": "state", "default": ""},
       {"name": "in2", "label": "Input 2",  "type": "state", "default": ""},
       {"name": "in3", "label": "Input 3",  "type": "state", "default": ""},
       {"name": "in4", "label": "Input 4",  "type": "state", "default": ""},
-      {"name": "in5", "label": "Input 5",  "type": "state", "default": ""}
+      {"name": "in5", "label": "Input 5",  "type": "state", "default": ""},
+      {"name": "sel", "label": "Selector", "type": "state", "default": ""}
     ]
   },
   "pwlin3": {
@@ -1055,55 +1067,55 @@
     ]
   },
   "tsa": {
-    "label": "Time-Signal Accumulator",
-    "category": "Timers",
-    "description": "Accumulates time signal",
-    "inputs": ["x"],
-    "outputs": ["y"],
-    "color": "#0891b2",
-    "dsl_lines": ["{{input}}", "{{output}}"],
-    "args": []
+    "label": "Two-State Automaton",
+    "category": "Automata",
+    "description": "Output xk = v1 or v2. Transitions to v2 depend on sign of x1, transitions back to v1 depend on sign of x2.",
+    "inputs": ["x1", "x2"],
+    "outputs": ["xk"],
+    "color": "#92400e",
+    "dsl_lines": ["{{input1}}", "{{input2}}", "{{output}}", "{{v1}}", "{{v2}}"],
+    "args": [
+      {"name": "v1", "label": "Value v1 (state 1)", "type": "expr", "default": "0."},
+      {"name": "v2", "label": "Value v2 (state 2)", "type": "expr", "default": "1."}
+    ]
   },
   "f_inj": {
-    "label": "INJ Output Equations",
+    "label": "Bus Frequency Estimator",
     "category": "Power System",
-    "description": "Computes ix, iy injection outputs. Only valid in INJ models.",
-    "inputs": ["ix_expr", "iy_expr"],
-    "outputs": [],
+    "description": "Estimates filtered per-unit frequency at the injector bus from vx,vy using measurement time constant T. Declares one output state (the frequency). Only valid in INJ models.",
+    "inputs": [],
+    "outputs": ["f"],
     "color": "#dc2626",
     "model_types": ["inj"],
-    "dsl_lines": ["{{input1}}", "{{input2}}"],
+    "dsl_lines": ["{{output}}", "{{T}}"],
     "args": [
-      {"name": "input1", "label": "ix expression", "type": "expr", "default": ""},
-      {"name": "input2", "label": "iy expression", "type": "expr", "default": ""}
+      {"name": "T", "label": "Measurement time constant T", "type": "expr", "default": "0.10"}
     ]
   },
   "f_twop_bus1": {
-    "label": "TWOP Bus 1 Output",
+    "label": "Bus 1 Frequency Estimator",
     "category": "Power System",
-    "description": "Current injection at bus 1 (ix1, iy1). Only valid in TWOP models.",
-    "inputs": ["ix1_expr", "iy1_expr"],
-    "outputs": [],
+    "description": "Estimates filtered per-unit frequency at bus 1 of a two-port from vx1,vy1 using measurement time constant T. Declares one output state (the frequency). Only valid in TWOP models.",
+    "inputs": [],
+    "outputs": ["f"],
     "color": "#dc2626",
     "model_types": ["twop"],
-    "dsl_lines": ["{{input1}}", "{{input2}}"],
+    "dsl_lines": ["{{output}}", "{{T}}"],
     "args": [
-      {"name": "input1", "label": "ix1 expression", "type": "expr", "default": ""},
-      {"name": "input2", "label": "iy1 expression", "type": "expr", "default": ""}
+      {"name": "T", "label": "Measurement time constant T", "type": "expr", "default": "0.10"}
     ]
   },
   "f_twop_bus2": {
-    "label": "TWOP Bus 2 Output",
+    "label": "Bus 2 Frequency Estimator",
     "category": "Power System",
-    "description": "Current injection at bus 2 (ix2, iy2). Only valid in TWOP models.",
-    "inputs": ["ix2_expr", "iy2_expr"],
-    "outputs": [],
+    "description": "Estimates filtered per-unit frequency at bus 2 of a two-port from vx2,vy2 using measurement time constant T. Declares one output state (the frequency). Only valid in TWOP models.",
+    "inputs": [],
+    "outputs": ["f"],
     "color": "#dc2626",
     "model_types": ["twop"],
-    "dsl_lines": ["{{input1}}", "{{input2}}"],
+    "dsl_lines": ["{{output}}", "{{T}}"],
     "args": [
-      {"name": "input1", "label": "ix2 expression", "type": "expr", "default": ""},
-      {"name": "input2", "label": "iy2 expression", "type": "expr", "default": ""}
+      {"name": "T", "label": "Measurement time constant T", "type": "expr", "default": "0.10"}
     ]
   }
 }
