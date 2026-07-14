@@ -48,7 +48,7 @@ The tool supports all four CODEGEN model types:
 pip install stepss-cg-studio
 ```
 
-The CODEGEN binary is bundled in the package for Windows and Linux — no separate download needed. On macOS, the binary is not yet available; you can provide your own via Settings.
+The CODEGEN binary is **not** shipped in the wheel. To use "Run Codegen", build or obtain a `codegen` executable and either place it on your `PATH` or set its location via Settings (gear icon).
 
 ### Install from source (for development)
 
