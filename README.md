@@ -1,7 +1,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/stepss-cg-studio)](https://pypi.org/project/stepss-cg-studio/)
 [![CI](https://img.shields.io/github/actions/workflow/status/SPS-L/stepss-cg-studio/ci.yml?branch=main&label=tests)](https://github.com/SPS-L/stepss-cg-studio/actions)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Docs](https://img.shields.io/github/actions/workflow/status/SPS-L/stepss-docs/deploy.yml?branch=main&label=docs)](https://stepss.sps-lab.org/developer/cg-studio/)
 
 # CODEGEN Studio
@@ -171,7 +171,7 @@ Full documentation is available at [https://stepss.sps-lab.org/developer/cg-stud
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Apache License 2.0 — see [LICENSE](LICENSE).
 
 ## Authors
 
