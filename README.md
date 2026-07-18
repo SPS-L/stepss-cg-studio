@@ -6,7 +6,7 @@
 
 # CODEGEN Studio
 
-CODEGEN Studio is a browser-based, drag-and-drop visual editor for building [STEPSS CODEGEN](https://stepss.sps-lab.org/developer/user-models/) User-Defined Models — part of the [STEPSS](https://stepss.sps-lab.org/) power system simulation suite. It lets you create device models by wiring blocks on a canvas instead of manually writing DSL files.
+CODEGEN Studio is a browser-based, drag-and-drop visual editor for building [STEPSS CODEGEN](https://stepss.sps-lab.org/developer/user-models/) User-Defined Models — part of the [STEPSS](https://stepss.sps-lab.org/) power system simulation platform. It lets you create device models by wiring blocks on a canvas instead of manually writing DSL files.
 
 STEPSS has been developed by [Dr. Petros Aristidou](https://sps-lab.org/) (Cyprus University of Technology) and Dr. Thierry Van Cutsem (Emeritus, University of Liège).
 
@@ -23,13 +23,13 @@ The tool supports all four CODEGEN model types:
 | **INJ** | Current injector | `ix`, `iy` |
 | **TWOP** | Two-port device | `ix1`, `iy1`, `ix2`, `iy2` |
 
-## Key Features
+## Features
 
 - **Drag-and-drop block diagram editor** — assemble models visually on a canvas with 54 built-in blocks
 - **Live DSL preview** — syntax-highlighted code updates in real time as you edit
 - **Lossless round-trip** — import existing `.txt` DSL files with automatic canvas layout, edit, and re-export
 - **One-click Fortran generation** — run the `codegen` binary directly from the browser
-- **Project save/load** — `.cgproj` files preserve full editor state including block positions
+- **Project save/load** — JSON project files preserve full editor state including block positions
 - **Mandatory output validation** — warns when required outputs for the model type are missing
 - **Undo/redo** — 60-step history with keyboard shortcuts
 - **Extensible block catalogue** — add new blocks via a single JSON entry, no code changes required
@@ -95,7 +95,7 @@ cg-studio --no-browser        # start server without opening browser
 |----------|--------|
 | Ctrl/Cmd + S | Save project |
 | Ctrl/Cmd + Z | Undo |
-| Ctrl/Cmd + Shift + Z | Redo |
+| Ctrl/Cmd + Shift + Z (or Ctrl/Cmd + Y) | Redo |
 | Delete / Backspace | Delete selected block |
 | Escape | Close modal |
 
@@ -112,14 +112,14 @@ stepss-cg-studio/
 │   ├── app.py                  # FastAPI server & API endpoints
 │   ├── dsl_parser.py           # DSL .txt → ModelProject dict
 │   ├── dsl_emitter.py          # ModelProject dict → DSL .txt
-│   ├── bin/                    # Bundled CODEGEN binaries
+│   ├── bin/                    # Optional codegen binary drop-in (empty by default)
 │   └── frontend/               # Static web assets (no build step)
 │       ├── index.html
 │       ├── css/style.css
 │       ├── js/                 # Vanilla JS modules
 │       └── blocks.json         # Block catalogue (54 blocks, extend here)
 ├── tests/                      # Pytest test suite (~140 tests)
-├── examples/                   # Example .cgproj project files
+├── examples/                   # Example DSL models (.txt) and projects (.json)
 ├── docs/                       # Design documents
 ├── run.bat                     # Windows dev launcher
 └── run.sh                      # Linux/macOS dev launcher
@@ -151,7 +151,7 @@ CI runs pytest on Python 3.10–3.12 via GitHub Actions.
 
 Access via the gear icon in the toolbar:
 
-- **Codegen binary path** — path to the `codegen` executable (default: bundled binary)
+- **Codegen binary path** — path to the `codegen` executable (default: use a bundled binary if present, otherwise search `PATH`)
 - **Server host** — change to `0.0.0.0` for network access (default: `127.0.0.1`)
 - **Server port** — HTTP port (default: `8765`)
 
@@ -171,11 +171,11 @@ Full documentation is available at [https://stepss.sps-lab.org/developer/cg-stud
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+CODEGEN Studio is distributed under the **Apache License 2.0** — see [LICENSE](LICENSE). Copyright © Petros Aristidou.
 
 ## Authors
 
-Developed by the [Sustainable Power Systems Lab (SPS-L)](https://sps-lab.org), Cyprus University of Technology.
+Developed and maintained by the [Sustainable Power Systems Laboratory (SPS-L)](https://sps-lab.org/) at the Cyprus University of Technology, under the direction of Dr. Petros Aristidou.
 
 - [Dr. Petros Aristidou](https://sps-lab.org/) — Cyprus University of Technology
 - Dr. Thierry Van Cutsem — Emeritus, University of Liège
