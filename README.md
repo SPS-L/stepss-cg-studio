@@ -6,13 +6,13 @@
 
 # CODEGEN Studio
 
-CODEGEN Studio is a browser-based, drag-and-drop visual editor for building [STEPSS CODEGEN](https://stepss.sps-lab.org/developer/user-models/) User-Defined Models — part of the [STEPSS](https://stepss.sps-lab.org/) power system simulation platform. It lets you create device models by wiring blocks on a canvas instead of manually writing DSL files.
+CODEGEN Studio is a browser-based, drag-and-drop visual editor for building [STEPSS CODEGEN](https://stepss.sps-lab.org/developer/user-models/) User-Defined Models, part of the [STEPSS](https://stepss.sps-lab.org/) power system simulation platform. It lets you create device models by wiring blocks on a canvas instead of manually writing DSL files.
 
 STEPSS has been developed by [Dr. Petros Aristidou](https://sps-lab.org/) (Cyprus University of Technology) and Dr. Thierry Van Cutsem (Emeritus, University of Liège).
 
 ## Overview
 
-CODEGEN Studio replaces the manual editing of CODEGEN DSL `.txt` files with a graphical workflow. You drag blocks from a categorised palette, connect input/output ports to define signal flow, fill in metadata tables, and export ready-to-compile DSL files — or run the `codegen` binary directly from the editor to generate Fortran `.f90` source.
+CODEGEN Studio replaces the manual editing of CODEGEN DSL `.txt` files with a graphical workflow. You drag blocks from a categorised palette, connect input/output ports to define signal flow, fill in metadata tables, and export ready-to-compile DSL files, or run the `codegen` binary directly from the editor to generate Fortran `.f90` source.
 
 The tool supports all four CODEGEN model types:
 
@@ -25,15 +25,15 @@ The tool supports all four CODEGEN model types:
 
 ## Features
 
-- **Drag-and-drop block diagram editor** — assemble models visually on a canvas with 54 built-in blocks
-- **Live DSL preview** — syntax-highlighted code updates in real time as you edit
-- **Lossless round-trip** — import existing `.txt` DSL files with automatic canvas layout, edit, and re-export
-- **One-click Fortran generation** — run the `codegen` binary directly from the browser
-- **Project save/load** — JSON project files preserve full editor state including block positions
-- **Mandatory output validation** — warns when required outputs for the model type are missing
-- **Undo/redo** — 60-step history with keyboard shortcuts
-- **Extensible block catalogue** — add new blocks via a single JSON entry, no code changes required
-- **No build step** — vanilla JavaScript frontend served by a Python backend
+- **Drag-and-drop block diagram editor**: assemble models visually on a canvas with 54 built-in blocks
+- **Live DSL preview**: syntax-highlighted code updates in real time as you edit
+- **Lossless round-trip**: import existing `.txt` DSL files with automatic canvas layout, edit, and re-export
+- **One-click Fortran generation**: run the `codegen` binary directly from the browser
+- **Project save/load**: JSON project files preserve full editor state including block positions
+- **Mandatory output validation**: warns when required outputs for the model type are missing
+- **Undo/redo**: 60-step history with keyboard shortcuts
+- **Extensible block catalogue**: add new blocks via a single JSON entry, no code changes required
+- **No build step**: vanilla JavaScript frontend served by a Python backend
 
 ## Installation
 
@@ -82,12 +82,12 @@ cg-studio --no-browser        # start server without opening browser
 
 ### Building a model
 
-1. **Select model type and name** — choose EXC, TOR, INJ, or TWOP from the toolbar dropdown
-2. **Add blocks** — drag blocks from the left-hand palette onto the canvas
-3. **Connect blocks** — wire output ports to input ports to define signal flow
-4. **Edit block properties** — select a block to configure output names and arguments in the inspector
-5. **Populate metadata** — fill in Data, Parameters, States, and Observables in the tabs below the canvas
-6. **Export** — click "Export DSL" for the `.txt` file, or "Run Codegen" to generate Fortran directly
+1. **Select model type and name**: choose EXC, TOR, INJ, or TWOP from the toolbar dropdown
+2. **Add blocks**: drag blocks from the left-hand palette onto the canvas
+3. **Connect blocks**: wire output ports to input ports to define signal flow
+4. **Edit block properties**: select a block to configure output names and arguments in the inspector
+5. **Populate metadata**: fill in Data, Parameters, States, and Observables in the tabs below the canvas
+6. **Export**: click "Export DSL" for the `.txt` file, or "Run Codegen" to generate Fortran directly
 
 ### Keyboard shortcuts
 
@@ -127,7 +127,7 @@ stepss-cg-studio/
 
 ## Adding New Blocks
 
-Edit `src/cg_studio/frontend/blocks.json` — add a single JSON entry with the block name, ports, argument schema, DSL line templates, and category. No JavaScript or Python changes required.
+Edit `src/cg_studio/frontend/blocks.json`: add a single JSON entry with the block name, ports, argument schema, DSL line templates, and category. No JavaScript or Python changes required.
 
 ## Running Tests
 
@@ -151,9 +151,9 @@ CI runs pytest on Python 3.10–3.12 via GitHub Actions.
 
 Access via the gear icon in the toolbar:
 
-- **Codegen binary path** — path to the `codegen` executable (default: use a bundled binary if present, otherwise search `PATH`)
-- **Server host** — change to `0.0.0.0` for network access (default: `127.0.0.1`)
-- **Server port** — HTTP port (default: `8765`)
+- **Codegen binary path**: path to the `codegen` executable (default: use a bundled binary if present, otherwise search `PATH`)
+- **Server host**: change to `0.0.0.0` for network access (default: `127.0.0.1`)
+- **Server port**: HTTP port (default: `8765`)
 
 Settings are stored in a platform-specific config directory:
 - **Windows:** `%LOCALAPPDATA%\cg-studio\config.json`
@@ -165,20 +165,20 @@ Also editable via the REST API at `http://localhost:8765/docs`.
 
 Full documentation is available at [https://stepss.sps-lab.org/developer/cg-studio/](https://stepss.sps-lab.org/developer/cg-studio/).
 
-- [User-Defined Models](https://stepss.sps-lab.org/developer/user-models/) — DSL format specification
-- [CODEGEN Blocks Library](https://stepss.sps-lab.org/developer/codegen-library/) — complete block reference
-- [CODEGEN Model Examples](https://stepss.sps-lab.org/developer/codegen-examples/) — annotated example files
+- [User-Defined Models](https://stepss.sps-lab.org/developer/user-models/): DSL format specification
+- [CODEGEN Blocks Library](https://stepss.sps-lab.org/developer/codegen-library/): complete block reference
+- [CODEGEN Model Examples](https://stepss.sps-lab.org/developer/codegen-examples/): annotated example files
 
 ## License
 
-CODEGEN Studio is distributed under the **Apache License 2.0** — see [LICENSE](LICENSE). Copyright © Petros Aristidou.
+CODEGEN Studio is distributed under the **Apache License 2.0**. See [LICENSE](LICENSE). Copyright © Petros Aristidou.
 
 ## Authors
 
 Developed and maintained by the [Sustainable Power Systems Laboratory (SPS-L)](https://sps-lab.org/) at the Cyprus University of Technology, under the direction of Dr. Petros Aristidou.
 
-- [Dr. Petros Aristidou](https://sps-lab.org/) — Cyprus University of Technology
-- Dr. Thierry Van Cutsem — Emeritus, University of Liège
+- [Dr. Petros Aristidou](https://sps-lab.org/): Cyprus University of Technology
+- Dr. Thierry Van Cutsem: Emeritus, University of Liège
 
 ## Support
 
