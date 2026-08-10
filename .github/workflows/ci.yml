@@ -16,10 +16,10 @@ jobs:
         python-version: ["3.10", "3.11", "3.12"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -47,8 +47,8 @@ jobs:
             wheel_plat: macosx_11_0_arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install build tools
@@ -60,7 +60,7 @@ jobs:
         run: chmod +x src/cg_studio/bin/codegen || true
       - name: Build wheel
         run: python -m build --wheel
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wheel-${{ matrix.wheel_plat }}
           path: dist/*.whl
@@ -73,7 +73,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: dist/
           merge-multiple: true
