@@ -1,7 +1,7 @@
-codegen_version  5.2.0
-codegen_tag      v5.2.0
-codegen_commit   6a3a594a42cb94a82441de5ccf129d32f79afdec
-built_utc        2026-08-10T10:37:54Z
+codegen_version  5.3
+codegen_tag      v5.3
+codegen_commit   9387163edf03cc7d7356c952c124d96151b2aac3
+built_utc        2026-08-21T10:12:14Z
 runner_image     macos-15 (arm64)
 compiler         GNU Fortran (Homebrew GCC 16.1.0) 16.1.0
 target           aarch64-apple-darwin24

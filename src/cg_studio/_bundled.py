@@ -10,4 +10,4 @@ two components of __version__ always name the generator bundled here. See
 tools/bump_version.sh.
 """
 
-CODEGEN_VERSION = "v5.2.0"
+CODEGEN_VERSION = "v5.3"
