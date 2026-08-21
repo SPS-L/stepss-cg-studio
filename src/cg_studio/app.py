@@ -12,9 +12,10 @@ Endpoints
 GET  /              -> serves frontend/index.html  (via StaticFiles html=True)
 GET  /favicon.ico   -> returns frontend/favicon.svg (suppresses browser 404)
 GET  /blocks        -> returns blocks.json catalogue
+GET  /codegen_version -> the CODEGEN release bundled in this wheel
 POST /parse         -> DSL text -> ModelProject JSON
 POST /emit          -> ModelProject JSON -> DSL text
-POST /run_codegen   -> DSL text -> run codegen binary -> return .f90 text
+POST /run_codegen   -> DSL text -> run bundled CODEGEN -> return .f90 text
 GET  /config        -> current config.json
 PUT  /config        -> update config.json
 
@@ -42,7 +43,12 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from cg_studio.config import load_config as _load_config, save_config as _save_config, resolve_codegen as _resolve_codegen
+from cg_studio.config import (
+    load_config as _load_config,
+    save_config as _save_config,
+    resolve_codegen as _resolve_codegen,
+    codegen_version as _codegen_version,
+)
 from cg_studio.dsl_parser import (
     parse_dsl as _parse,
     MANDATORY_OUTPUTS,
@@ -82,7 +88,6 @@ class RunCodegenRequest(BaseModel):
     model_name: str = ""
 
 class ConfigUpdateRequest(BaseModel):
-    codegen_path: str | None = None
     workspace_dir: str | None = None
     host: str | None = None
     port: int | None = None
@@ -204,23 +209,43 @@ async def emit_dsl(req: EmitRequest):
         raise HTTPException(status_code=422, detail=str(exc))
 
 
+def _exec_failure_detail(exc: OSError) -> str:
+    """Explain an exec that failed before CODEGEN ever ran.
+
+    An unsupported CPU and a missing runtime both surface as an OSError rather
+    than a returncode, and the message is only useful if it names the actual
+    cause. "codegen failed" sent people looking for the binary-path setting for
+    as long as supplying the binary was their job; there is no such setting now,
+    so the message has to carry the whole diagnosis itself.
+    """
+    machine = platform.machine()
+    system = platform.system()
+    if system == "Darwin":
+        return (f"The bundled CODEGEN {_codegen_version()} could not be started on "
+                f"this Mac ({machine}). It is an Apple Silicon build, so an Intel "
+                f"Mac cannot run it. ({exc})")
+    if system == "Linux":
+        return (f"The bundled CODEGEN {_codegen_version()} could not be started on "
+                f"this machine ({machine}). It is an x86-64 build; no CODEGEN is "
+                f"published for other Linux architectures. ({exc})")
+    return (f"The bundled CODEGEN {_codegen_version()} could not be started on this "
+            f"machine ({system} {machine}). ({exc})")
+
+
 @app.post("/run_codegen")
 async def run_codegen(req: RunCodegenRequest):
     """
-    Save DSL text to a temp file, invoke the codegen binary, return .f90 text.
-    The codegen binary is called as: codegen -t<path_to_dsl_file>
+    Save DSL text to a temp file, invoke the bundled CODEGEN, return .f90 text.
+    CODEGEN is called as: CODEGEN -t<path_to_dsl_file>
     """
-    cfg = _load_config()
-    codegen_bin = _resolve_codegen(cfg.get("codegen_path", "bundled"))
+    codegen_bin = _resolve_codegen()
     if codegen_bin is None:
-        if platform.system() == "Darwin":
-            detail = ("CODEGEN binary is not yet available for macOS. "
-                      "Please provide your own binary via Settings "
-                      "(gear icon) > Codegen binary path.")
-        else:
-            detail = ("CODEGEN binary not found. Reinstall stepss-cg-studio "
-                      "with pip or set the path in Settings.")
-        raise HTTPException(status_code=500, detail=detail)
+        raise HTTPException(
+            status_code=500,
+            detail=(f"No CODEGEN is bundled for {platform.system()}. The wheel "
+                    f"carries Linux x86-64, Windows x86-64 and macOS Apple "
+                    f"Silicon builds."),
+        )
 
     lines = [l.strip() for l in req.dsl_text.splitlines() if l.strip()]
     model_type = req.model_type or (lines[0] if lines else "exc")
@@ -241,13 +266,19 @@ async def run_codegen(req: RunCodegenRequest):
                 timeout=30,
             )
         except FileNotFoundError:
+            # resolve_codegen() checked the file exists, so reaching here means
+            # the installation lost it between that check and the exec.
             raise HTTPException(
                 status_code=500,
-                detail=f"codegen binary not found at: {str(codegen_bin)!r}. "
-                       "Update the path in Settings (gear icon).",
+                detail=f"The bundled CODEGEN has gone missing from {str(codegen_bin)!r}. "
+                       "Reinstall stepss-cg-studio with pip.",
             )
+        except OSError as exc:
+            # Exec format error (wrong CPU) and a missing shared library both
+            # land here rather than in the returncode.
+            raise HTTPException(status_code=500, detail=_exec_failure_detail(exc))
         except subprocess.TimeoutExpired:
-            raise HTTPException(status_code=500, detail="codegen timed out after 30 s")
+            raise HTTPException(status_code=500, detail="CODEGEN timed out after 30 s")
 
         f90_path = Path(tmp_dir) / f90_filename
         f90_text = f90_path.read_text(encoding="utf-8") if f90_path.exists() else ""
@@ -262,6 +293,22 @@ async def run_codegen(req: RunCodegenRequest):
         })
 
 
+@app.get("/codegen_version")
+async def get_codegen_version():
+    """Report the CODEGEN bundled in this wheel, and whether it runs here.
+
+    Read-only by design. The version is a property of the installed package,
+    not a setting: the wheel's own version number is derived from it, so the
+    only way to change the CODEGEN in use is to install a different
+    stepss-cg-studio.
+    """
+    return JSONResponse(content={
+        "version": _codegen_version(),
+        "platform": platform.system(),
+        "bundled": _resolve_codegen() is not None,
+    })
+
+
 @app.get("/config")
 async def get_config():
     return JSONResponse(content=_load_config())
@@ -270,8 +317,6 @@ async def get_config():
 @app.put("/config")
 async def update_config(req: ConfigUpdateRequest):
     cfg = _load_config()
-    if req.codegen_path is not None:
-        cfg["codegen_path"] = req.codegen_path
     if req.workspace_dir is not None:
         cfg["workspace_dir"] = req.workspace_dir
     if req.host is not None:

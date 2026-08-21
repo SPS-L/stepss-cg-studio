@@ -1,0 +1,704 @@
+name: sync-codegen-release
+
+# Fired by stepss-Codegen when it publishes a release. Refreshes the CODEGEN
+# executables this wheel bundles, proves the refreshed wheel actually runs the
+# generator on every platform, and only then releases and publishes.
+#
+# THIS FILE IS THE PyPI PUBLISHER. Publishing is authenticated by OIDC trusted
+# publishing, and a trusted publisher binds to the workflow *filename*: renaming
+# this file, or moving the publish step into another one, breaks the upload with
+# a 403 that no amount of re-running fixes. Change the publisher on PyPI in the
+# same pass or not at all.
+on:
+  repository_dispatch:
+    types: [codegen-release]
+  # Rehearsal by default: with `publish` left off this runs fetch -> build ->
+  # gate and stops, reaching neither main nor PyPI. Ticking `publish` is the
+  # only way a hand-triggered run releases, and it is how a python-only change
+  # reaches PyPI: pick source `manual`, which touches no upstream and just takes
+  # the next counter on the current CODEGEN base.
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Upstream to sync, or "manual" for a python-only release'
+        required: true
+        type: choice
+        options: [codegen, manual]
+      tag:
+        description: 'CODEGEN release tag, e.g. v5.3. Leave blank for manual.'
+        required: false
+        type: string
+      publish:
+        description: 'Publish for real. Leave off to rehearse.'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+# Two upstream releases in quick succession must not race for main.
+concurrency:
+  group: cg-studio-sync
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    outputs:
+      source: ${{ steps.vars.outputs.source }}
+      upstream_tag: ${{ steps.vars.outputs.upstream_tag }}
+      rehearsal: ${{ steps.vars.outputs.rehearsal }}
+      duplicate: ${{ steps.dup.outputs.duplicate }}
+      studio_tag: ${{ steps.bump.outputs.studio_tag }}
+      branch: ${{ steps.commit.outputs.branch }}
+      head_sha: ${{ steps.commit.outputs.head_sha }}
+      base_sha: ${{ steps.commit.outputs.base_sha }}
+    steps:
+      # The payload is untrusted input: validate its shape, and never let it
+      # reach a run: script except through env.
+      - name: Resolve and validate the trigger
+        id: vars
+        env:
+          EVENT: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          DISPATCH_TAG: ${{ github.event.client_payload.tag }}
+          INPUT_SOURCE: ${{ inputs.source }}
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_PUBLISH: ${{ inputs.publish }}
+        run: |
+          if [ "$EVENT" = "repository_dispatch" ]; then
+            # The event type identifies the sender, so no 'source' field in the
+            # payload is ever trusted. `manual` is unreachable here: an upstream
+            # can only ever announce itself.
+            case "$ACTION" in
+              codegen-release) SOURCE=codegen ;;
+              *) echo "FAIL: unexpected dispatch type '$ACTION'"; exit 1 ;;
+            esac
+            TAG="$DISPATCH_TAG"
+            REHEARSAL=false
+          else
+            SOURCE="$INPUT_SOURCE"
+            TAG="$INPUT_TAG"
+            # Quoted `= 'true'` on purpose: an unset or empty input must fail
+            # closed to a rehearsal, and an unquoted comparison would coerce the
+            # empty string and fail open.
+            if [ "$INPUT_PUBLISH" = "true" ]; then REHEARSAL=false; else REHEARSAL=true; fi
+          fi
+
+          if [ "$SOURCE" = "manual" ]; then
+            # A python-only release bundles whatever main already bundles, so
+            # there is no upstream tag to carry, validate or record.
+            if [ -n "$TAG" ]; then
+              echo "FAIL: source 'manual' takes no tag; got '$TAG'."
+              echo "A manual release republishes the CODEGEN main already bundles."
+              exit 1
+            fi
+            echo "source=$SOURCE"        >> "$GITHUB_OUTPUT"
+            echo "upstream_tag="         >> "$GITHUB_OUTPUT"
+            echo "rehearsal=$REHEARSAL"  >> "$GITHUB_OUTPUT"
+            echo "Manual python-only release (rehearsal=$REHEARSAL)"
+            exit 0
+          fi
+
+          if [ -z "$TAG" ]; then
+            echo "FAIL: source '$SOURCE' requires a tag."
+            exit 1
+          fi
+
+          # Validate the tag as a single whole string before anything is written
+          # to $GITHUB_OUTPUT. `grep -z` treats the entire input (embedded
+          # newlines included) as one record, so ^...$ must match start-to-end
+          # of the whole value. A line-oriented check here would let a value
+          # like $'v5.3\ntag=EVIL' through.
+          #
+          # No hyphen in the character class, which is what rejects a
+          # prerelease. The sender already guards on `prerelease == false`, and
+          # that is one unticked box away from publishing rc binaries to PyPI,
+          # where a version can never be reclaimed.
+          if ! printf '%s' "$TAG" | grep -qzE '^v[0-9][0-9A-Za-z.+]*$'; then
+            echo "FAIL: refusing tag: it must match ^v[0-9][0-9A-Za-z.+]*\$ as a single line, with no embedded newlines."
+            echo "A hyphen is rejected on purpose: a prerelease tag such as v5.3-rc1 must never be published."
+            exit 1
+          fi
+          echo "source=$SOURCE"        >> "$GITHUB_OUTPUT"
+          echo "upstream_tag=$TAG"     >> "$GITHUB_OUTPUT"
+          echo "rehearsal=$REHEARSAL"  >> "$GITHUB_OUTPUT"
+          echo "Syncing $SOURCE $TAG (rehearsal=$REHEARSAL)"
+
+      - uses: actions/checkout@v7
+        with:
+          # repository_dispatch freezes github.sha to the default branch's tip
+          # at dispatch time, and a concurrency-queued or re-run job replays
+          # that stale value. Naming the branch makes every execution resolve
+          # main as it stands right now.
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      # A duplicate dispatch is not hypothetical: 'Re-run all jobs' on the
+      # sender's release workflow replays `event_name == 'release'` and fires
+      # the dispatch again. The computed studio tag cannot detect that -- it is
+      # a fresh counter off main, so it never pre-exists. What does detect it is
+      # _bundled.py: if main already records this exact tag, the executables are
+      # already bundled, and going on would spend a second, unreclaimable PyPI
+      # version on byte-identical content.
+      #
+      # The escape hatch is `client_payload[force]`, read only through env: and
+      # compared against the literal 'true' so it fails closed. It exists
+      # because a bundle refreshed by hand -- or one this automation wrote but
+      # never published -- is indistinguishable from a genuine duplicate, and in
+      # those cases the guard blocks the one run that is actually needed. An
+      # upstream must NEVER set it automatically: a sender that always forced
+      # would turn every re-run of its own release workflow into another spent
+      # PyPI version.
+      - name: Detect a duplicate dispatch
+        id: dup
+        env:
+          SOURCE: ${{ steps.vars.outputs.source }}
+          TAG: ${{ steps.vars.outputs.upstream_tag }}
+          REHEARSAL: ${{ steps.vars.outputs.rehearsal }}
+          FORCE: ${{ github.event.client_payload.force }}
+        run: |
+          BUNDLED="src/cg_studio/_bundled.py"
+          if [ "$SOURCE" = "manual" ]; then
+            # Nothing to compare: a manual release changes no bundled version,
+            # so it can never be the repeat of an upstream announcement. Its
+            # protection against a double-publish is the version number itself,
+            # which takes the next free counter and is then checked against the
+            # existing tags and releases below.
+            echo "Manual release: the duplicate guard does not apply"
+            echo "duplicate=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ ! -f "$BUNDLED" ]; then
+            echo "WARN: $BUNDLED not found, so nothing can be a duplicate of it"
+            echo "duplicate=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CURRENT="$(sed -n "s/^CODEGEN_VERSION[[:space:]]*=[[:space:]]*[\"']\([^\"']*\)[\"'].*/\1/p" "$BUNDLED" | head -n1)"
+          echo "main bundles CODEGEN ${CURRENT:-(unset)}; the incoming tag is $TAG"
+
+          DUPLICATE=false
+          if [ "$CURRENT" = "$TAG" ]; then
+            if [ "$REHEARSAL" = "true" ]; then
+              # Rehearsing against an already-bundled tag is precisely how this
+              # pipeline is tested, and a rehearsal can reach neither main nor
+              # PyPI. Never let this guard block that path.
+              echo "Rehearsal: $TAG is already bundled; continuing anyway."
+            elif [ "$FORCE" = "true" ]; then
+              # Loud on purpose: this line is the audit trail for a deliberate
+              # re-publish over an already-bundled tag.
+              echo "=================================================================="
+              echo "FORCED: proceeding over an already-bundled tag."
+              echo "main already bundles CODEGEN $TAG, so this run would normally be"
+              echo "classified a duplicate and skipped entirely. client_payload[force]"
+              echo "was set to exactly 'true', so the duplicate guard -- and only the"
+              echo "duplicate guard -- is bypassed."
+              echo "This run will refresh, bump, build, gate on all three platforms,"
+              echo "fast-forward main, cut a release AND SPEND A NEW PyPI VERSION."
+              echo "A PyPI version can never be reclaimed. Someone asked for this."
+              echo "=================================================================="
+            else
+              DUPLICATE=true
+              echo "DUPLICATE: CODEGEN $TAG is already bundled on main."
+              echo "This dispatch repeats one that already completed. The refresh, the"
+              echo "build, the gate and the release are all skipped: republishing"
+              echo "byte-identical executables would spend a second PyPI version, and a"
+              echo "PyPI version can never be reclaimed. This is an expected, benign"
+              echo "event -- no issue is filed and nothing is released."
+              echo "If this bundle was refreshed outside the automation and has never"
+              echo "been published, re-dispatch by hand with -f 'client_payload[force]=true'."
+            fi
+          fi
+          echo "duplicate=$DUPLICATE" >> "$GITHUB_OUTPUT"
+
+      - name: Refresh the bundled executables
+        if: steps.dup.outputs.duplicate != 'true'
+        env:
+          SOURCE: ${{ steps.vars.outputs.source }}
+          TAG: ${{ steps.vars.outputs.upstream_tag }}
+          # stepss-Codegen is private, so the built-in token cannot read its
+          # releases. This is the same secret the sender dispatched with.
+          GH_TOKEN: ${{ secrets.STEPSS_TOKEN }}
+        run: |
+          if [ "$SOURCE" = "codegen" ]; then
+            bash tools/update_codegen.sh "$TAG"
+          else
+            # manual: a python-only release ships the executables main already
+            # has. Refreshing anything here would silently widen the change.
+            echo "Manual release: bundled executables left untouched"
+          fi
+          git status --short src/cg_studio/bin
+
+      - name: Bump the version and record the bundled CODEGEN
+        id: bump
+        if: steps.dup.outputs.duplicate != 'true'
+        env:
+          SOURCE: ${{ steps.vars.outputs.source }}
+          TAG: ${{ steps.vars.outputs.upstream_tag }}
+        run: |
+          # The version is <codegen X.Y>.<counter>, derived from the tags that
+          # already exist, so the checkout above must have them: fetch-depth: 0.
+          if [ "$SOURCE" = "manual" ]; then
+            NEW="$(bash tools/bump_version.sh manual)"
+          else
+            NEW="$(bash tools/bump_version.sh codegen "$TAG")"
+          fi
+          echo "studio_tag=v$NEW" >> "$GITHUB_OUTPUT"
+          echo "New CODEGEN Studio version: $NEW"
+          cat src/cg_studio/_bundled.py
+
+      # A backstop against a hand-forced state (a tag or release created out of
+      # band), not against a duplicate dispatch: the tag it checks is a fresh
+      # counter off main and so cannot pre-exist on the normal path. The
+      # duplicate guard is the step above.
+      - name: Refuse to re-release an existing tag
+        if: steps.dup.outputs.duplicate != 'true' && steps.vars.outputs.rehearsal == 'false'
+        env:
+          TAG: ${{ steps.bump.outputs.studio_tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "FAIL: tag $TAG already exists in stepss-cg-studio"
+            exit 1
+          fi
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "FAIL: release $TAG already exists in stepss-cg-studio"
+            exit 1
+          fi
+          echo "OK: $TAG is free"
+
+      - name: Commit to a sync branch
+        id: commit
+        if: steps.dup.outputs.duplicate != 'true'
+        env:
+          SOURCE: ${{ steps.vars.outputs.source }}
+          TAG: ${{ steps.vars.outputs.upstream_tag }}
+          STUDIO_TAG: ${{ steps.bump.outputs.studio_tag }}
+          REHEARSAL: ${{ steps.vars.outputs.rehearsal }}
+        run: |
+          if [ "$SOURCE" = "manual" ]; then
+            BRANCH="sync/manual-$STUDIO_TAG"
+            MSG="Release $STUDIO_TAG"
+          else
+            BRANCH="sync/codegen-$TAG"
+            MSG="Bundle CODEGEN $TAG and release $STUDIO_TAG"
+          fi
+          BASE_SHA="$(git rev-parse HEAD)"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A src/cg_studio/bin src/cg_studio/_bundled.py src/cg_studio/__init__.py
+          git status --short
+          git commit -m "$MSG"
+          if [ "$REHEARSAL" = "true" ]; then
+            echo "Rehearsal: not pushing $BRANCH"
+          else
+            git push origin "$BRANCH"
+          fi
+          echo "branch=$BRANCH"                 >> "$GITHUB_OUTPUT"
+          echo "head_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "base_sha=$BASE_SHA"             >> "$GITHUB_OUTPUT"
+
+      # A rehearsal has no pushed branch for later jobs to check out, so the
+      # refreshed tree travels as an artifact instead.
+      - name: Upload the refreshed tree (rehearsal only)
+        if: steps.dup.outputs.duplicate != 'true' && steps.vars.outputs.rehearsal == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rehearsal-tree
+          path: |
+            src/
+            tests/
+            tools/
+          if-no-files-found: error
+          # The recovery this workflow prescribes for itself is 'Re-run all
+          # jobs', which reuses the same run, so the second attempt would 409 on
+          # the artifact the first one already uploaded.
+          overwrite: true
+
+  build-wheel:
+    needs: [fetch]
+    # A duplicate dispatch stops here: fetch changed nothing, so there is
+    # nothing to build, gate or release. Skipping rather than failing is
+    # deliberate -- a duplicate is expected and benign, and report-failure must
+    # not file an issue for it.
+    if: needs.fetch.outputs.duplicate != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Pinned to the exact commit the release job will publish, not the
+          # mutable branch head, so the tree that was gated is provably the tree
+          # that ships.
+          ref: ${{ needs.fetch.outputs.rehearsal == 'true' && 'main' || needs.fetch.outputs.head_sha }}
+
+      - name: Overlay the rehearsal tree
+        if: needs.fetch.outputs.rehearsal == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: rehearsal-tree
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Build the sdist and wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --sdist --wheel --outdir dist
+
+      - name: The wheel carries all three executables
+        run: |
+          ls -l dist
+          python - <<'EOF'
+          import glob, stat, zipfile
+          whl = glob.glob('dist/*.whl')[0]
+          entries = {i.filename: i for i in zipfile.ZipFile(whl).infolist()}
+          # A wheel is built once on Linux and installed everywhere, so a
+          # package-data glob that silently drops the Windows executable is
+          # invisible to every job in this workflow except this one: it would
+          # surface as a runtime failure for a Windows user, after publishing.
+          for want in ('cg_studio/bin/lin/CODEGEN',
+                       'cg_studio/bin/win/CODEGEN.exe',
+                       'cg_studio/bin/mac/CODEGEN',
+                       'cg_studio/bin/LICENSE-CODEGEN'):
+              assert want in entries, 'wheel is missing %s' % want
+              print('ok:', want, entries[want].file_size, 'bytes')
+          # The mode bit is carried by the zip entry and restored by pip. Losing
+          # it makes the install unrunnable in a way nothing else in the package
+          # would notice.
+          for want in ('cg_studio/bin/lin/CODEGEN',
+                       'cg_studio/bin/win/CODEGEN.exe',
+                       'cg_studio/bin/mac/CODEGEN'):
+              mode = entries[want].external_attr >> 16
+              assert mode & stat.S_IXUSR, '%s is not executable in the wheel' % want
+              print('ok: executable', want)
+          EOF
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/*
+          if-no-files-found: error
+          overwrite: true
+
+  # The point of the whole change: prove that a plain `pip install` of this
+  # wheel can generate Fortran, on each platform, with nothing else installed
+  # and no setting to configure.
+  gate:
+    needs: [fetch, build-wheel]
+    if: needs.fetch.outputs.duplicate != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        # macos-15 is arm64, which the arm64-only CODEGEN macOS build needs.
+        os: [ubuntu-24.04, windows-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.fetch.outputs.rehearsal == 'true' && 'main' || needs.fetch.outputs.head_sha }}
+
+      - name: Overlay the rehearsal tree
+        if: needs.fetch.outputs.rehearsal == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: rehearsal-tree
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+
+      # The Linux and Windows CODEGEN builds are statically linked and need
+      # nothing. Apple does not support fully static executables, so the macOS
+      # one links against Homebrew's libgfortran and libquadmath: this is the
+      # one platform where a bundled CODEGEN has a runtime dependency, and it is
+      # what the release notes tell macOS users to install.
+      - name: Install the macOS runtime dependency
+        if: runner.os == 'macOS'
+        run: brew install gcc
+
+      # Installing the built wheel, not the source tree: the artifact users get
+      # is the artifact the gate runs against.
+      - name: Install the built wheel
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest httpx
+          python -m pip install "$(ls dist/*.whl)"
+          python -c "import cg_studio; print(cg_studio.__version__)"
+          python -c "from cg_studio.config import codegen_version, resolve_codegen; print(codegen_version(), resolve_codegen())"
+
+      # Deliberately not the whole suite: the e2e tests need a Playwright
+      # browser and a CDN, and ci.yml already runs them on every push. What this
+      # job is for is the bundled binary, on this operating system.
+      - name: Generate Fortran with the bundled CODEGEN
+        shell: bash
+        run: pytest tests/test_api.py tests/test_config.py tests/test_cli.py -v
+
+      # Belt and braces, and the one check that reads the version back out of
+      # the executable itself: a wheel whose _bundled.py and whose bin/ disagree
+      # would pass every test above.
+      - name: The executable reports the version the wheel claims
+        shell: bash
+        run: |
+          python - <<'EOF'
+          import subprocess, sys
+          from cg_studio.config import codegen_version, resolve_codegen
+          binary = resolve_codegen()
+          assert binary is not None, "no bundled CODEGEN for this platform"
+          out = subprocess.run([str(binary), "-v"], capture_output=True, text=True)
+          print(out.stdout.strip())
+          reported = out.stdout.split()[1]
+          claimed = codegen_version().lstrip("v")
+          if reported != claimed:
+              sys.exit("FAIL: the wheel says it bundles CODEGEN %s, "
+                       "but the executable reports %s" % (claimed, reported))
+          print("OK: bundled CODEGEN is", reported)
+          EOF
+
+  release:
+    needs: [fetch, build-wheel, gate]
+    # A rehearsal must never reach this job. `rehearsal` is the single gate,
+    # because a hand-triggered run is allowed to publish when someone ticks
+    # `publish` -- that is the python-only release path. It is false in exactly
+    # two places: a repository_dispatch, and a workflow_dispatch whose publish
+    # input is the string 'true'. Anything else, including an unset input,
+    # leaves it 'true' and stops here.
+    if: >-
+      needs.fetch.outputs.rehearsal == 'false'
+      && needs.fetch.outputs.duplicate != 'true'
+    runs-on: ubuntu-24.04
+    environment: pypi
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+    outputs:
+      main_moved: ${{ steps.ff.outputs.moved }}
+      release_published: ${{ steps.publish.outputs.published }}
+      # Set by a step of our own, not by the third-party publish action, which
+      # exposes no outputs.
+      pypi_published: ${{ steps.pypi_done.outputs.published }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.fetch.outputs.head_sha }}
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+
+      - name: Fast-forward main
+        id: ff
+        env:
+          HEAD_SHA: ${{ needs.fetch.outputs.head_sha }}
+          BASE_SHA: ${{ needs.fetch.outputs.base_sha }}
+        run: |
+          git fetch origin main
+          CURRENT="$(git rev-parse origin/main)"
+          if [ "$CURRENT" != "$BASE_SHA" ]; then
+            echo "FAIL: main moved from $BASE_SHA to $CURRENT while the wheel was being gated."
+            echo "Rebasing would publish a tree that was never gated. Use 'Re-run all jobs'"
+            echo "(not 'Re-run failed jobs') to retry from the current state, and delete the"
+            echo "leftover sync branch first or the re-run's own push will be a non-fast-forward."
+            exit 1
+          fi
+          # Rejected by the server if it is not a fast-forward.
+          git push origin "$HEAD_SHA:refs/heads/main"
+          echo "OK: main is now $HEAD_SHA"
+          echo "moved=true" >> "$GITHUB_OUTPUT"
+
+      - name: Cut the GitHub release
+        id: publish
+        env:
+          TAG: ${{ needs.fetch.outputs.studio_tag }}
+          HEAD_SHA: ${{ needs.fetch.outputs.head_sha }}
+          SOURCE: ${{ needs.fetch.outputs.source }}
+          UPSTREAM_TAG: ${{ needs.fetch.outputs.upstream_tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          CODEGEN_VER="$(sed -n 's/^CODEGEN_VERSION = "\(.*\)"/\1/p' src/cg_studio/_bundled.py)"
+          if [ "$SOURCE" = "manual" ]; then
+            LEDE="Release of the Python side. The bundled generator did not change; the
+          version below is the one this release inherits from the previous one."
+          else
+            LEDE="Automated release: **CODEGEN $UPSTREAM_TAG** was published upstream and the
+          bundled executables were refreshed to match."
+          fi
+          cat > notes.md <<EOF
+          $LEDE
+
+          | Component | Version |
+          | --- | --- |
+          | CODEGEN | $CODEGEN_VER |
+
+          The leading two components of this release's version always name the
+          bundled CODEGEN, so $TAG runs CODEGEN $CODEGEN_VER and nothing else: the
+          "Codegen binary path" setting is gone and there is nothing to configure.
+
+          Run Codegen works on a fresh \`pip install stepss-cg-studio\`, on Linux
+          x86-64, Windows x86-64 and Apple Silicon. macOS additionally needs
+          \`brew install gcc\`, because Apple does not support fully static
+          executables and that build links against libgfortran.
+
+          The wheel attached here is the exact artifact the gate ran against on all
+          three platforms: it was installed with pip and made to generate Fortran on
+          each before this release was cut. It is this file, not a rebuild, that the
+          automation then uploads to PyPI.
+
+          CODEGEN is not Apache 2.0. It is the property of Dr. Thierry Van Cutsem and
+          is distributed under an Academic Public License, free for non-commercial
+          use; see https://stepss.sps-lab.org/getting-started/license/.
+          EOF
+          # --target creates the tag as part of publishing, collapsing what would
+          # otherwise be two points of no return into one.
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$HEAD_SHA" \
+            --title "CODEGEN Studio $TAG" \
+            --notes-file notes.md \
+            dist/*
+          echo "published=true" >> "$GITHUB_OUTPUT"
+
+      # Last, deliberately. A PyPI version can never be reclaimed, so it runs
+      # only once main has moved and the release exists. If this step alone
+      # fails, the gated wheel is attached to the release above and can be
+      # uploaded by hand.
+      #
+      # Authenticated by OIDC trusted publishing: no secret is read here, and
+      # the token GitHub mints names this repository and THIS WORKFLOW FILENAME,
+      # both of which the publisher on PyPI is registered against.
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+      # Only reached if the upload above succeeded, so this is a faithful record
+      # of whether the version was spent. report-failure keys the difference
+      # between "retryable" and "gone" off it.
+      - name: Mark PyPI published
+        id: pypi_done
+        run: echo "published=true" >> "$GITHUB_OUTPUT"
+
+      - name: Delete the sync branch
+        env:
+          BRANCH: ${{ needs.fetch.outputs.branch }}
+        run: git push origin --delete "$BRANCH"
+
+  report-failure:
+    needs: [fetch, build-wheel, gate, release]
+    # `cancelled()` matters as much as `failure()` here. A manual cancel, or the
+    # release job's timeout expiring during the PyPI upload, produces no failed
+    # job at all -- so a `failure()`-only condition reported nothing about the
+    # single most dangerous moment in the pipeline.
+    if: >-
+      (failure() || cancelled())
+      && needs.fetch.outputs.rehearsal == 'false'
+      && needs.fetch.outputs.duplicate != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      issues: write
+    steps:
+      - name: File or update an issue
+        env:
+          VALIDATED_TAG: ${{ needs.fetch.outputs.upstream_tag }}
+          RAW_TAG: ${{ github.event.client_payload.tag }}
+          SOURCE: ${{ needs.fetch.outputs.source }}
+          MAIN_MOVED: ${{ needs.release.outputs.main_moved }}
+          RELEASE_PUBLISHED: ${{ needs.release.outputs.release_published }}
+          PYPI_PUBLISHED: ${{ needs.release.outputs.pypi_published }}
+          RELEASE_RESULT: ${{ needs.release.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="$VALIDATED_TAG"
+          if [ "$SOURCE" = "manual" ]; then
+            TAG="(none)"
+          elif [ -z "$TAG" ]; then
+            # Validation itself is what failed, so the raw payload is still
+            # untrusted free text: strip everything outside the tag charset and
+            # clamp the length before it reaches a public issue.
+            TAG="$(printf '%s' "$RAW_TAG" | tr -cd 'A-Za-z0-9.+-' | cut -c1-80)"
+            [ -n "$TAG" ] || TAG="(unknown)"
+          fi
+          SRC="${SOURCE:-unknown}"
+
+          if [ "$PYPI_PUBLISHED" = "true" ]; then
+            STATE="\`main\` moved, the release was cut AND **PyPI was published**. That version number cannot be reused; any fix needs a further release."
+          elif [ "$RELEASE_PUBLISHED" = "true" ]; then
+            # Deliberately not "PyPI was not published": these markers record
+            # what reported success, and an upload that was cancelled or timed
+            # out mid-flight may well have landed. Claiming it did not, and
+            # being wrong, sends the reader to re-upload a version already spent.
+            STATE="\`main\` moved and the release was cut, but **the PyPI upload did not report success**. It may still have completed: check https://pypi.org/project/stepss-cg-studio/#history before retrying anything. Only if the version is genuinely absent, upload the gated wheel attached to the release by hand -- never a rebuild."
+          elif [ "$MAIN_MOVED" = "true" ]; then
+            # Re-running is no longer a recovery here: main now bundles this
+            # CODEGEN tag, so the duplicate guard in `fetch` would skip the whole
+            # run. Say so, rather than leaving the generic re-run advice below to
+            # send the reader somewhere that does nothing.
+            STATE="\`main\` WAS fast-forwarded, but no release was cut and nothing reported reaching PyPI. **Re-running this workflow will now be detected as a duplicate and do nothing**, because \`main\` already bundles CODEGEN \`$TAG\`. Recover by hand: cut the release from the current \`main\`, attaching the \`dist\` artifact from this run, then upload that same wheel to PyPI."
+          else
+            STATE="\`main\` was NOT moved, no release was cut and nothing reported reaching PyPI."
+          fi
+
+          # A cancelled run stops steps where they stand, so a step that was in
+          # flight can have completed without ever setting its marker. Written
+          # flush with this run: block's own indentation, not indented under the
+          # `if`: it is interpolated into the <<-EOF heredoc below, whose
+          # tab-stripping applies to the literal heredoc lines and not to what a
+          # variable expands to. Any leading whitespace here would survive into
+          # the issue body as a markdown code block.
+          CAVEAT=""
+          if [ "$RELEASE_RESULT" = "cancelled" ]; then
+          CAVEAT="
+
+          **This run was cancelled** (by hand, or by a job timeout), so the state above
+          records only what had *reported* success before it stopped. A step that was in
+          flight may have completed anyway. Verify against \`main\`, the releases page
+          and https://pypi.org/project/stepss-cg-studio/#history before retrying."
+          fi
+
+          TITLE="CODEGEN $TAG: cg-studio sync failed"
+          BODY="$(cat <<-EOF
+          	The sync-codegen-release workflow did not complete for $SRC \`$TAG\`.
+
+          	Run: $RUN_URL
+
+          	$STATE$CAVEAT
+
+          	The sync branch is left in place for inspection. If \`main\` was NOT moved,
+          	delete that branch once the cause is fixed and re-run the workflow (Re-run
+          	all jobs, not just the failed ones) from the Actions UI. Once \`main\` has
+          	moved, a re-run is detected as a duplicate and does nothing -- follow the
+          	state above instead.
+          	EOF
+          )"
+          # `in:title` search is word-based, not exact, so fetch titles and
+          # compare exactly instead.
+          EXISTING="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --json number,title \
+            | jq -r --arg t "$TITLE" '.[] | select(.title == $t) | .number' | head -n1)"
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body "$BODY"
+            echo "Commented on existing issue #$EXISTING"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$BODY"
+          fi

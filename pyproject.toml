@@ -7,7 +7,14 @@ name = "stepss-cg-studio"
 dynamic = ["version"]
 description = "Visual block diagram editor for STEPSS CODEGEN power system models"
 readme = "README.md"
-license = {text = "Apache-2.0"}
+# Deliberately NOT "Apache-2.0". The Python package is Apache 2.0, but the
+# wheel also carries the CODEGEN executables, which are the property of
+# Dr. Thierry Van Cutsem and distributed under an Academic Public License:
+# free for non-commercial use, commercial use by arrangement with the authors.
+# https://stepss.sps-lab.org/getting-started/license/ is the single owner of
+# these facts; this field, the README and cg_studio/bin/LICENSE-CODEGEN are
+# summaries that point at it.
+license = {text = "Apache-2.0 AND LicenseRef-STEPSS-Academic-Public-License"}
 requires-python = ">=3.10"
 authors = [
     {name = "Petros Aristidou", email = "apetros@pm.me"},
@@ -16,7 +23,6 @@ keywords = ["CODEGEN", "Power Systems", "STEPSS", "RAMSES", "Block Diagram"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -53,7 +59,10 @@ version = {attr = "cg_studio.__version__"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-cg_studio = ["frontend/**/*", "bin/*"]
+# bin/**/* , not bin/* : the executables live one level down, under
+# bin/{lin,win,mac}/, and the single-star glob silently shipped a wheel with
+# no CODEGEN in it at all.
+cg_studio = ["frontend/**/*", "bin/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

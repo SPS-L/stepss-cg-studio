@@ -2,17 +2,35 @@
 config.py
 =========
 Platform-aware configuration, workspace directory resolution,
-and CODEGEN binary lookup.
+and bundled CODEGEN executable lookup.
 """
 
 from __future__ import annotations
 
-import importlib.resources
 import json
 import os
 import platform
-import shutil
+import stat
 from pathlib import Path
+
+from cg_studio._bundled import CODEGEN_VERSION
+
+#: ``platform.system()`` -> (directory under ``bin/``, executable name).
+#:
+#: Keyed on the operating system alone, deliberately not on
+#: ``platform.machine()`` as well. Both Windows on ARM and macOS under Rosetta
+#: report an architecture that does not match the binary yet run it perfectly
+#: well, so an architecture check here would refuse to launch a CODEGEN that
+#: works. The genuinely unsupported cases -- aarch64 Linux, an Intel Mac --
+#: surface instead as an ``OSError`` from the exec itself, which ``app.py``
+#: turns into a message naming the architecture.
+_PLATFORM_BINARIES = {
+    "Linux": ("lin", "CODEGEN"),
+    "Windows": ("win", "CODEGEN.exe"),
+    "Darwin": ("mac", "CODEGEN"),
+}
+
+_BIN_DIR = Path(__file__).resolve().parent / "bin"
 
 
 def config_dir() -> Path:
@@ -32,22 +50,35 @@ def default_workspace() -> Path:
 
 
 _DEFAULTS = {
-    "codegen_path": "bundled",
     "host": "127.0.0.1",
     "port": 8765,
 }
+
+#: Keys dropped from an existing config.json on load. ``codegen_path`` was the
+#: setting that let a user point at their own CODEGEN, which existed only
+#: because no CODEGEN was shipped: the wheel now carries all three platforms
+#: and there is exactly one executable to run. Removed rather than ignored in
+#: place, so an upgraded installation does not keep displaying a path that no
+#: longer decides anything.
+_RETIRED_KEYS = ("codegen_path",)
 
 
 def load_config(config_path: Path | None = None) -> dict:
     """Load config from *config_path* (default: platform config dir).
 
-    Creates the file with defaults if it does not exist.
+    Creates the file with defaults if it does not exist, and drops any retired
+    key an older version wrote.
     """
     if config_path is None:
         config_path = config_dir() / "config.json"
 
     if config_path.exists():
-        return json.loads(config_path.read_text(encoding="utf-8"))
+        cfg = json.loads(config_path.read_text(encoding="utf-8"))
+        if any(key in cfg for key in _RETIRED_KEYS):
+            for key in _RETIRED_KEYS:
+                cfg.pop(key, None)
+            save_config(cfg, config_path)
+        return cfg
 
     # Build defaults with resolved workspace path
     cfg = {**_DEFAULTS, "workspace_dir": str(default_workspace())}
@@ -65,29 +96,40 @@ def save_config(cfg: dict, config_path: Path | None = None) -> None:
     config_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
 
-def resolve_codegen(configured_path: str) -> Path | None:
-    """Resolve the CODEGEN binary using the priority chain:
+def codegen_version() -> str:
+    """Return the CODEGEN release tag bundled in this package, e.g. ``v5.3``."""
+    return CODEGEN_VERSION
 
-    1. User override (any value other than ``"bundled"``)
-    2. Bundled binary inside this package
-    3. System PATH lookup
-    4. ``None`` (not found)
+
+def resolve_codegen() -> Path | None:
+    """Return the bundled CODEGEN executable for this platform, or ``None``.
+
+    ``None`` means this operating system has no bundled build at all, which is
+    a different thing from a bundled build that will not run here: see
+    :data:`_PLATFORM_BINARIES`.
     """
-    # 1. User override
-    if configured_path and configured_path != "bundled":
-        p = Path(configured_path)
-        return p if p.is_file() else None
+    entry = _PLATFORM_BINARIES.get(platform.system())
+    if entry is None:
+        return None
 
-    # 2. Bundled binary
-    suffix = ".exe" if platform.system() == "Windows" else ""
-    try:
-        ref = importlib.resources.files("cg_studio") / "bin" / f"codegen{suffix}"
-        with importlib.resources.as_file(ref) as bundled:
-            if bundled.is_file():
-                return Path(str(bundled))
-    except (TypeError, FileNotFoundError):
-        pass
+    subdir, name = entry
+    binary = _BIN_DIR / subdir / name
+    if not binary.is_file():
+        return None
 
-    # 3. System PATH
-    found = shutil.which("codegen")
-    return Path(found) if found else None
+    # A backstop, not the mechanism: tools/update_codegen.sh installs the
+    # executables 755 and pip restores the mode bit from the wheel. It costs a
+    # stat and covers the ways a file can reach an installation without it --
+    # an unzip by hand, a copy across a filesystem that drops modes, an
+    # installer that normalises permissions.
+    mode = binary.stat().st_mode
+    if not mode & stat.S_IXUSR:
+        try:
+            binary.chmod(mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        except OSError:
+            # A read-only site-packages is not a reason to claim there is no
+            # CODEGEN; the exec below may still succeed, and if it does not the
+            # caller reports the real error.
+            pass
+
+    return binary

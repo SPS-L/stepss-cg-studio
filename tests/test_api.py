@@ -329,16 +329,21 @@ class TestConfig:
     def test_get_config_has_required_keys(self):
         r = client.get("/config")
         cfg = r.json()
-        for key in ("codegen_path", "host", "port"):
+        for key in ("host", "port"):
             assert key in cfg, f"Config missing key: {key}"
 
-    def test_put_config_codegen_path(self):
-        original = client.get("/config").json().get("codegen_path", "codegen")
-        r = client.put("/config", json={"codegen_path": "/tmp/codegen_test"})
-        assert r.status_code == 200
-        assert r.json()["config"]["codegen_path"] == "/tmp/codegen_test"
-        # restore
-        client.put("/config", json={"codegen_path": original})
+    def test_config_carries_no_codegen_path(self):
+        """The setting is gone, not merely hidden in the UI.
+
+        CODEGEN ships in the wheel, so there is nothing left to point
+        somewhere else; leaving the key writable would let a config file
+        silently decide which generator runs.
+        """
+        assert "codegen_path" not in client.get("/config").json()
+
+    def test_put_config_rejects_codegen_path(self):
+        client.put("/config", json={"codegen_path": "/tmp/codegen_test"})
+        assert "codegen_path" not in client.get("/config").json()
 
     def test_put_config_partial_update(self):
         r = client.put("/config", json={"port": 9999})
@@ -348,42 +353,81 @@ class TestConfig:
 
     def test_put_config_preserves_other_fields(self):
         original = client.get("/config").json()
-        client.put("/config", json={"codegen_path": "__test__"})
+        client.put("/config", json={"port": 9999})
         updated = client.get("/config").json()
         assert updated["host"] == original["host"]
-        assert updated["port"] == original["port"]
+        assert updated["workspace_dir"] == original["workspace_dir"]
         # restore
-        client.put("/config", json={"codegen_path": original["codegen_path"]})
+        client.put("/config", json={"port": original["port"]})
 
 
-# ── /run_codegen (binary absent — graceful failure) ──────────────────────────
+# ── /codegen_version ─────────────────────────────────────────────────────────
+
+class TestCodegenVersion:
+    def test_status(self):
+        assert client.get("/codegen_version").status_code == 200
+
+    def test_reports_the_bundled_release(self):
+        body = client.get("/codegen_version").json()
+        assert body["version"].startswith("v")
+        assert body["bundled"] is True
+
+    def test_is_read_only(self):
+        """No PUT: the version is a property of the install, not a setting."""
+        assert client.put("/codegen_version", json={"version": "v9.9"}).status_code == 405
+
+
+# ── /run_codegen (against the bundled executable) ────────────────────────────
 
 class TestRunCodegen:
-    def test_run_codegen_missing_binary_returns_500(self):
-        # Point to a non-existent binary so we test the error path cleanly
-        client.put("/config", json={"codegen_path": "__no_such_binary_xyz__"})
+    def test_run_codegen_generates_fortran(self):
+        """The end-to-end path the whole bundle exists for.
+
+        Before CODEGEN shipped in the wheel this could only be tested as a
+        failure, because a fresh install had no generator to run at all.
+        """
         r = client.post("/run_codegen", json={
             "dsl_text": DSL_EXC,
             "model_type": "exc",
-            "model_name": "ENTSOE_simp"
+            "model_name": "ENTSOE_simp",
         })
-        assert r.status_code == 500
-        assert "codegen" in r.json()["detail"].lower()
-        # restore
-        client.put("/config", json={"codegen_path": "codegen"})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["success"] is True, body
+        assert body["returncode"] == 0
+        assert body["f90_filename"] == "exc_ENTSOE_simp.f90"
+        assert "subroutine" in body["f90_text"].lower()
 
     def test_run_codegen_bad_request_missing_dsl(self):
         r = client.post("/run_codegen", json={})
         assert r.status_code == 422
 
     def test_run_codegen_infers_type_name_from_dsl(self):
-        """When model_type/model_name are omitted, server infers them from dsl_text."""
-        client.put("/config", json={"codegen_path": "__no_such_binary_xyz__"})
+        """When model_type/model_name are omitted, they come from dsl_text."""
         r = client.post("/run_codegen", json={"dsl_text": DSL_TOR})
-        # 500 because binary absent — but request was accepted (not 422)
+        assert r.status_code == 200
+        assert r.json()["f90_filename"] == "tor_GOV_simple.f90"
+
+    def test_run_codegen_reports_an_unsupported_platform(self, monkeypatch):
+        """resolve_codegen() returning None means no build for this OS."""
+        monkeypatch.setattr("cg_studio.app._resolve_codegen", lambda: None)
+        r = client.post("/run_codegen", json={"dsl_text": DSL_EXC})
         assert r.status_code == 500
-        # restore
-        client.put("/config", json={"codegen_path": "codegen"})
+        assert "codegen" in r.json()["detail"].lower()
+
+    def test_run_codegen_reports_a_binary_that_will_not_start(self, monkeypatch):
+        """Wrong CPU or a missing runtime raises OSError, not a returncode.
+
+        The message has to name the architecture: "codegen failed" sent people
+        looking for a setting that no longer exists.
+        """
+        def _boom(*_args, **_kwargs):
+            raise OSError(8, "Exec format error")
+        monkeypatch.setattr("cg_studio.app.subprocess.run", _boom)
+        r = client.post("/run_codegen", json={"dsl_text": DSL_EXC})
+        assert r.status_code == 500
+        import platform
+        assert platform.machine() in r.json()["detail"]
 
 
 # ── mandatory outputs ────────────────────────────────────────────────────────

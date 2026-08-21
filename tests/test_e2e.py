@@ -176,10 +176,23 @@ def test_settings_modal_opens(app_page):
     page = app_page
     page.click("#btn-settings")
     expect(page.locator("#settings-overlay")).to_be_visible()
-    expect(page.locator("#cfg-codegen-path")).to_be_visible()
+    expect(page.locator("#cfg-host")).to_be_visible()
     # Close it
     page.click("#settings-cancel")
     expect(page.locator("#settings-overlay")).to_be_hidden()
+
+
+def test_settings_shows_the_bundled_codegen_and_offers_no_path(app_page):
+    """The version is displayed, and there is nothing to point elsewhere.
+
+    Both halves matter: dropping the input without showing what CODEGEN is
+    installed would leave a user with no way to tell which generator ran.
+    """
+    page = app_page
+    page.click("#btn-settings")
+    expect(page.locator("#cfg-codegen-version")).to_contain_text("v")
+    assert page.locator("#cfg-codegen-path").count() == 0
+    page.click("#settings-cancel")
 
 
 # ---------------------------------------------------------------------------

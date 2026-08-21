@@ -1,0 +1,11 @@
+codegen_version  5.2.0
+codegen_tag      v5.2.0
+codegen_commit   6a3a594a42cb94a82441de5ccf129d32f79afdec
+built_utc        2026-08-10T10:37:55Z
+runner_image     ubuntu-24.04
+compiler         GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+target           x86_64-linux-gnu
+fflags           -O2 -cpp -fdec -ffree-line-length-none -ffree-form
+ldflags          -static
+runtime_floor    static - self-contained, no glibc requirement
+built_with       build/Makefile.linux
