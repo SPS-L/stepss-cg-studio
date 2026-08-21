@@ -8,12 +8,35 @@ name: CI
 #
 # It is also the registered PyPI trusted publisher, and a trusted publisher
 # binds to the workflow filename, so a publish step added back here would 403.
+#
+# The two workflows are complementary rather than overlapping, which is why
+# neither can be folded into the other. This one runs all 151 tests on Python
+# 3.10, 3.11 and 3.12, on Linux. The release gate runs 66 of them on 3.12, on
+# Linux, Windows and macOS, because what it exists to prove is that the bundled
+# executable runs on each platform. So test_parser, test_e2e,
+# test_project_adapter, test_check_model and test_validate -- 85 tests, over
+# half the suite -- run here and nowhere else, and requires-python's floor of
+# 3.10 is a claim only this workflow ever checks. The e2e tests could not move
+# into the gate in any case: they need a Playwright browser and a CDN on three
+# runners.
 
+# Push is scoped to main, not "**". With both triggers open to every branch, a
+# pull request from a branch in this repository matched each of them and ran the
+# whole suite twice, Playwright and all. A branch pushed without a PR is covered
+# by the PR run that opening one produces, which is the same arrangement helios
+# and python-ui use.
+#
+# Note that a release never reaches this workflow: sync-codegen-release.yml
+# fast-forwards main using the checkout-persisted GITHUB_TOKEN, and a push made
+# with that token starts no workflow run. That is by design rather than a gap.
+# The only thing such a commit adds to an already-tested main is the refreshed
+# executables and the version bump, and proving those is exactly what the
+# release gate does, on all three operating systems.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
-    branches: ["main"]
+    branches: [main]
 
 jobs:
   test:
