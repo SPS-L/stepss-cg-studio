@@ -119,11 +119,11 @@
     <div id="settings-title">&#9881; Settings</div>
     <div id="settings-body">
       <div class="settings-row">
-        <label for="cfg-codegen-path">Codegen binary path</label>
-        <input id="cfg-codegen-path" type="text" spellcheck="false"
-               placeholder="codegen  (or full path to codegen.exe)"/>
-        <span class="settings-hint">Full path to the <code>codegen</code> executable, or just
-          <code>codegen</code> if it is on your system PATH.</span>
+        <label>Bundled CODEGEN</label>
+        <output id="cfg-codegen-version">&#8230;</output>
+        <span class="settings-hint">The code generator shipped inside this install. It is not a
+          setting: the version of CODEGEN Studio is derived from it, so installing a different
+          CODEGEN means installing a different <code>stepss-cg-studio</code>.</span>
       </div>
       <div class="settings-row">
         <label for="cfg-host">Server host</label>

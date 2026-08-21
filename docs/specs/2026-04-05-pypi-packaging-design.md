@@ -1,7 +1,15 @@
 # PyPI Packaging Design — `stepss-cg-studio`
 
 **Date:** 2026-04-05
-**Status:** Draft
+**Status:** Superseded — kept as a record of what was planned, not as guidance.
+
+> **Superseded by the bundling work tracked in issue #2.** Three things below
+> are no longer true: the wheel is **not** platform-specific (one wheel carries
+> Linux, Windows and macOS executables), macOS **is** covered, and the
+> "Codegen binary path" setting and the `PATH` fallback are **gone** — there is
+> exactly one CODEGEN and no way to point the editor at another. See
+> `CLAUDE.md` for the design that shipped.
+
 **Goal:** Package CG Studio as a `pip install`-able PyPI package with a bundled CODEGEN binary, so electrical engineers can install and run it with two commands and zero configuration.
 
 ---

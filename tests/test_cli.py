@@ -11,7 +11,7 @@ class TestCLI:
     @patch("cg_studio.cli.webbrowser")
     @patch("cg_studio.cli.load_config", return_value={
         "host": "127.0.0.1", "port": 8765,
-        "codegen_path": "bundled", "workspace_dir": "/tmp",
+        "workspace_dir": "/tmp",
     })
     def test_default_opens_browser(self, _cfg, mock_wb, mock_uv):
         with patch("sys.argv", ["cg-studio"]):
@@ -25,7 +25,7 @@ class TestCLI:
     @patch("cg_studio.cli.webbrowser")
     @patch("cg_studio.cli.load_config", return_value={
         "host": "127.0.0.1", "port": 8765,
-        "codegen_path": "bundled", "workspace_dir": "/tmp",
+        "workspace_dir": "/tmp",
     })
     def test_no_browser_flag(self, _cfg, mock_wb, mock_uv):
         with patch("sys.argv", ["cg-studio", "--no-browser"]):
@@ -36,7 +36,7 @@ class TestCLI:
     @patch("cg_studio.cli.webbrowser")
     @patch("cg_studio.cli.load_config", return_value={
         "host": "127.0.0.1", "port": 8765,
-        "codegen_path": "bundled", "workspace_dir": "/tmp",
+        "workspace_dir": "/tmp",
     })
     def test_port_override(self, _cfg, mock_wb, mock_uv):
         with patch("sys.argv", ["cg-studio", "--port", "9999"]):

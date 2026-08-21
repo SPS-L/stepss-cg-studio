@@ -29,16 +29,97 @@ cg-studio                 # console script, opens browser
 python -m cg_studio       # equivalent module form
 ```
 
-CI runs pytest on Python 3.10–3.12 via GitHub Actions (`.github/workflows/ci.yml`).
+CI runs pytest on Python 3.10–3.12 via GitHub Actions (`.github/workflows/ci.yml`). That workflow **only tests**; building, gating and publishing the wheel belong to `sync-codegen-release.yml`.
+
+## CODEGEN is bundled, and that decides the version number
+
+The wheel carries the CODEGEN executables for all three platforms under
+`src/cg_studio/bin/{lin,win,mac}/`, committed to this repository. `Run Codegen`
+therefore works on a fresh `pip install stepss-cg-studio`, which is the whole
+point: CODEGEN is distributed as a compiled executable and there was previously
+nowhere for a user to obtain one, so the editor's headline action failed on
+every fresh install.
+
+Three things follow, and none of them is optional:
+
+- **There is no "Codegen binary path" setting, and it must not come back.**
+  `resolve_codegen()` takes no argument, reads no config key and does not search
+  `PATH`. `load_config()` deletes a `codegen_path` left behind by an older
+  install rather than ignoring it in place, because a setting still sitting in
+  `config.json` reads as though it decides something. If you find yourself
+  adding a parameter to `resolve_codegen()`, that is the regression.
+
+- **The version is `<bundled CODEGEN X.Y>.<counter>`**, computed by
+  `tools/bump_version.sh` from the tags that already exist: CODEGEN v5.3 makes
+  the next release 5.3.0, a python-only change after it 5.3.1, and CODEGEN v5.4
+  restarts at 5.4.0. `tests/test_config.py` asserts `__version__` and
+  `_bundled.py` agree, so bumping one by hand fails the suite. The counter is
+  derived rather than stored, so a re-run recomputes the same value and a tag
+  created by hand is taken into account for free.
+
+  CODEGEN versions are two components from v5.3 onwards precisely so this works;
+  its release workflow rejects a three-component tag. `bump_version.sh` still
+  takes only the first two components, which keeps the older v5.1.0/v5.2.0
+  releases usable as a base instead of producing a four-component wheel.
+
+- **The wheel is mixed-licence.** The Python is Apache 2.0; the bundled
+  executables are Dr. Thierry Van Cutsem's property under an Academic Public
+  License. `pyproject.toml` says so, the classifier claiming OSI Apache 2.0 for
+  the whole distribution is gone, and `bin/LICENSE-CODEGEN` ships beside the
+  binaries. `getting-started/license.md` in stepss-docs is the single owner of
+  these facts; everything here is a summary pointing at it. Never re-add
+  `License :: OSI Approved :: Apache Software License`.
+
+`tools/update_codegen.sh <tag>` is what refreshes the binaries. It unpacks each
+archive into its own directory: the Linux and macOS tarballs both contain a
+member named `CODEGEN`, and a flat extraction leaves one platform holding the
+other's executable, which is not distinguishable by name, size or `file` output.
+
+## Releases
+
+`.github/workflows/sync-codegen-release.yml` is the only thing that releases
+this package, and it is the registered **PyPI trusted publisher**. A trusted
+publisher binds to the workflow *filename*, so renaming that file or moving the
+publish step elsewhere breaks the upload with a 403 no re-run can fix.
+
+It fires on a `repository_dispatch` (`codegen-release`) from stepss-Codegen, and
+on `workflow_dispatch` for a python-only release (`source: manual`) or a
+rehearsal. A dispatch is fire-and-forget and nothing polls: if the sender's
+`notify-cg-studio` job goes red, this repository silently keeps shipping the
+previous CODEGEN until someone runs the workflow by hand.
+
+Shape, and the reasons behind it — this mirrors stepss-python-ui's
+`sync-upstream-release.yml`, which is the reference if anything here needs
+extending:
+
+- `workflow_dispatch` **rehearses by default**. Only `publish: true` (or a real
+  dispatch) can reach `main` or PyPI; an unset input fails closed.
+- A **duplicate dispatch** is detected by comparing `_bundled.py` against the
+  incoming tag, not by the computed version, which is a fresh counter and so can
+  never pre-exist. 'Re-run all jobs' on the sender replays its release event and
+  fires the dispatch again; republishing byte-identical executables would spend
+  a second PyPI version, and a PyPI version can never be reclaimed.
+- The `gate` job installs the **built wheel** on Linux, Windows and macOS and
+  makes it generate Fortran on each. It also reads the version back out of the
+  executable with `CODEGEN -v`: a wheel whose `_bundled.py` and whose `bin/`
+  disagree passes every other check.
+- `main` is fast-forwarded **before** the release is cut and the release
+  **before** the PyPI upload, so the least reversible step is last. If only the
+  upload fails, the gated wheel is attached to the release and can be uploaded
+  by hand — never a rebuild.
+- `report-failure` fires on `cancelled()` as well as `failure()`: a timeout
+  during the PyPI upload produces no failed job at all, and that is the most
+  dangerous moment in the pipeline.
 
 ## Architecture
 
 ### Backend (`src/cg_studio/`)
 
-- **`app.py`** — FastAPI server. API routes registered before static file mount (SPA fallback). Key endpoints: `POST /parse`, `POST /emit`, `POST /run_codegen`, `GET /blocks`, `GET /mandatory_outputs`, `GET /ramses_inputs`, `GET /ramses_reserved`, `GET/PUT /config`.
+- **`app.py`** — FastAPI server. API routes registered before static file mount (SPA fallback). Key endpoints: `POST /parse`, `POST /emit`, `POST /run_codegen`, `GET /blocks`, `GET /mandatory_outputs`, `GET /ramses_inputs`, `GET /ramses_reserved`, `GET /codegen_version`, `GET/PUT /config`.
 - **`dsl_parser.py`** — Converts DSL `.txt` → `ModelProject` dict. The critical `_parse_blocks()` method counts argument lines by looking up block name in `blocks.json` to determine `len(dsl_lines)`. Maps positional lines to template tokens (`{{input}}`, `{{output}}`, `{{K}}`, etc.). Exposes three name dicts: `RAMSES_INPUT_STATES` (palette-visible inputs), `MANDATORY_OUTPUTS`, and `RAMSES_INPUTS` (full reserved-name list incl. `if` for exc).
 - **`dsl_emitter.py`** — Inverse of parser: `ModelProject` dict → DSL `.txt`. Expects blocks in topologically-sorted order (frontend must sort before calling `/emit`). Normalises block comments to start with `!`.
-- **`config.py`** — Platform-aware config store. Reads/writes `config.json` under `%LOCALAPPDATA%\cg-studio\` (Windows) or `~/.config/cg-studio/` (Linux/macOS). Keys: codegen binary path, workspace dir, host, port.
+- **`config.py`** — Platform-aware config store. Reads/writes `config.json` under `%LOCALAPPDATA%\cg-studio\` (Windows) or `~/.config/cg-studio/` (Linux/macOS). Keys: workspace dir, host, port. Also owns `resolve_codegen()`, which finds the bundled executable, and `codegen_version()`.
+- **`_bundled.py`** — one constant, `CODEGEN_VERSION`, naming the CODEGEN release in `bin/`. Written by `tools/update_codegen.sh`; never edit by hand.
 - **`cli.py`** — `cg-studio` console script entry point (argparse: `--port`, `--host`, `--no-browser`).
 
 ### Frontend (`src/cg_studio/frontend/`)

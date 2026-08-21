@@ -60,7 +60,7 @@ These decisions were made before implementation and drive the architecture throu
 - Install: `pip install stepss-cg-studio` (or `pip install -e ".[dev]"` for a dev checkout).
 - Run: `cg-studio` (console script, installed by pip) — or `python -m cg_studio`. Default URL `http://localhost:8765`; the launcher auto-opens the browser unless `--no-browser` is passed.
 - The frontend (HTML/CSS/JS + `blocks.json`) ships inside the Python package at `cg_studio/frontend/` and is served from there via `importlib.resources`.
-- The CODEGEN binary is looked up in this order: (1) user override from Settings, (2) bundled binary inside the wheel at `cg_studio/bin/codegen[.exe]`, (3) `codegen` on `PATH`. Platform-specific wheels ship the matching binary; macOS currently has no bundled binary and requires the user to point Settings at a local build.
+- The CODEGEN executables ship inside the Python package at `cg_studio/bin/{lin,win,mac}/`, one wheel carrying all three, and `config.resolve_codegen()` picks the one for the running OS. There is no override and no `PATH` search: the wheel version names the bundled release, so a different CODEGEN means a different `stepss-cg-studio`. macOS additionally needs `brew install gcc`, because Apple does not support fully static executables.
 - Platform: Windows / Linux / macOS (RAMSES itself runs on Windows 64-bit only).
 
 ---
@@ -277,7 +277,8 @@ The `fsa` (finite-state automaton) block uses a multi-line free-form body (`{{fs
 | `POST` | `/emit` | `{ "project": {...} }` | `{ "dsl_text": "..." }` |
 | `POST` | `/run_codegen` | `{ "dsl_text": "...", "model_type": "...", "model_name": "..." }` | `{ "f90_text", "f90_filename", "stdout", "stderr", "returncode", "success" }` |
 | `GET` | `/config` | — | current config dict |
-| `PUT` | `/config` | any subset of `codegen_path`, `workspace_dir`, `host`, `port` | `{ "status": "ok", "config": {...} }` |
+| `PUT` | `/config` | any subset of `workspace_dir`, `host`, `port` | `{ "status": "ok", "config": {...} }` |
+| `GET` | `/codegen_version` | — | `{ "version": "v5.3", "platform": "Linux", "bundled": true }` — read-only |
 
 API routes are registered **before** the static-files mount so that unknown paths fall back to `index.html` (SPA routing) while known API paths stay intact. Auto-generated Swagger UI at `http://localhost:8765/docs`.
 

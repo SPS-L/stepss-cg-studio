@@ -1,7 +1,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/stepss-cg-studio)](https://pypi.org/project/stepss-cg-studio/)
 [![CI](https://img.shields.io/github/actions/workflow/status/SPS-L/stepss-cg-studio/ci.yml?branch=main&label=tests)](https://github.com/SPS-L/stepss-cg-studio/actions)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
-[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0%20%2B%20bundled%20CODEGEN-green.svg)](#license)
 [![Docs](https://img.shields.io/github/actions/workflow/status/SPS-L/stepss-docs/deploy.yml?branch=main&label=docs)](https://stepss.sps-lab.org/developer/cg-studio/)
 
 # CODEGEN Studio
@@ -12,7 +12,7 @@ STEPSS has been developed by [Dr. Petros Aristidou](https://sps-lab.org/) (Cypru
 
 ## Overview
 
-CODEGEN Studio replaces the manual editing of CODEGEN DSL `.txt` files with a graphical workflow. You drag blocks from a categorised palette, connect input/output ports to define signal flow, fill in metadata tables, and export ready-to-compile DSL files, or run the `codegen` binary directly from the editor to generate Fortran `.f90` source.
+CODEGEN Studio replaces the manual editing of CODEGEN DSL `.txt` files with a graphical workflow. You drag blocks from a categorised palette, connect input/output ports to define signal flow, fill in metadata tables, and export ready-to-compile DSL files, or run the bundled CODEGEN directly from the editor to generate Fortran `.f90` source.
 
 The tool supports all four CODEGEN model types:
 
@@ -28,7 +28,7 @@ The tool supports all four CODEGEN model types:
 - **Drag-and-drop block diagram editor**: assemble models visually on a canvas with 54 built-in blocks
 - **Live DSL preview**: syntax-highlighted code updates in real time as you edit
 - **Lossless round-trip**: import existing `.txt` DSL files with automatic canvas layout, edit, and re-export
-- **One-click Fortran generation**: run the `codegen` binary directly from the browser
+- **One-click Fortran generation**: the CODEGEN executables ship in the wheel, so this works on a fresh install
 - **Project save/load**: JSON project files preserve full editor state including block positions
 - **Mandatory output validation**: warns when required outputs for the model type are missing
 - **Undo/redo**: 60-step history with keyboard shortcuts
@@ -48,7 +48,17 @@ The tool supports all four CODEGEN model types:
 pip install stepss-cg-studio
 ```
 
-The CODEGEN binary is **not** shipped in the wheel. To use "Run Codegen", build or obtain a `codegen` executable and either place it on your `PATH` or set its location via Settings (gear icon).
+The CODEGEN executables are bundled in the wheel, for Linux x86-64, Windows x86-64 and macOS Apple Silicon. **Run Codegen works on a fresh install**: there is nothing to obtain, install or configure, and no setting to point anywhere.
+
+macOS is the one platform that needs anything else:
+
+```bash
+brew install gcc
+```
+
+Apple does not support fully static executables, so that CODEGEN build links against `libgfortran`. The Linux and Windows builds are statically linked and need nothing at all.
+
+The bundled CODEGEN is named in Settings (gear icon), and in the two leading components of this package's own version: `stepss-cg-studio` 5.3.0 and 5.3.1 both run CODEGEN 5.3. See [Versioning](#versioning).
 
 ### Install from source (for development)
 
@@ -105,20 +115,22 @@ cg-studio --no-browser        # start server without opening browser
 stepss-cg-studio/
 ├── pyproject.toml              # Package config, dependencies, entry point
 ├── src/cg_studio/
-│   ├── __init__.py             # Package version
+│   ├── __init__.py             # Package version (<bundled CODEGEN X.Y>.<counter>)
+│   ├── _bundled.py             # Which CODEGEN release bin/ holds
 │   ├── __main__.py             # python -m cg_studio support
 │   ├── cli.py                  # CLI entry point (cg-studio command)
 │   ├── config.py               # Platform-aware config & codegen resolution
 │   ├── app.py                  # FastAPI server & API endpoints
 │   ├── dsl_parser.py           # DSL .txt → ModelProject dict
 │   ├── dsl_emitter.py          # ModelProject dict → DSL .txt
-│   ├── bin/                    # Optional codegen binary drop-in (empty by default)
+│   ├── bin/                    # Bundled CODEGEN: lin/, win/, mac/ + LICENSE-CODEGEN
 │   └── frontend/               # Static web assets (no build step)
 │       ├── index.html
 │       ├── css/style.css
 │       ├── js/                 # Vanilla JS modules
 │       └── blocks.json         # Block catalogue (54 blocks, extend here)
-├── tests/                      # Pytest test suite (~140 tests)
+├── tests/                      # Pytest test suite (~150 tests)
+├── tools/                      # Release automation: update_codegen.sh, bump_version.sh
 ├── examples/                   # Example DSL models (.txt) and projects (.json)
 ├── docs/                       # Design documents
 ├── run.bat                     # Windows dev launcher
@@ -151,7 +163,7 @@ CI runs pytest on Python 3.10–3.12 via GitHub Actions.
 
 Access via the gear icon in the toolbar:
 
-- **Codegen binary path**: path to the `codegen` executable (default: use a bundled binary if present, otherwise search `PATH`)
+- **Bundled CODEGEN**: which CODEGEN release this install runs. Read-only, and not a setting: the package version is derived from it, so running a different CODEGEN means installing a different `stepss-cg-studio`.
 - **Server host**: change to `0.0.0.0` for network access (default: `127.0.0.1`)
 - **Server port**: HTTP port (default: `8765`)
 
@@ -169,9 +181,27 @@ Full documentation is available at [https://stepss.sps-lab.org/developer/cg-stud
 - [CODEGEN Blocks Library](https://stepss.sps-lab.org/developer/codegen-library/): complete block reference
 - [CODEGEN Model Examples](https://stepss.sps-lab.org/developer/codegen-examples/): annotated example files
 
+## Versioning
+
+The version is `<bundled CODEGEN X.Y>.<counter>`, so the leading pair always names the generator in the wheel:
+
+| Event | Version |
+|---|---|
+| CODEGEN v5.3 published | `5.3.0` |
+| a change on the Python side | `5.3.1` |
+| another change on the Python side | `5.3.2` |
+| CODEGEN v5.4 published | `5.4.0` |
+
+Publishing a CODEGEN release is what starts a sequence: `stepss-Codegen` tells this repository, `.github/workflows/sync-codegen-release.yml` refreshes the executables, proves the rebuilt wheel generates Fortran on all three platforms, and only then releases and publishes to PyPI. Nothing here is bumped by hand.
+
 ## License
 
-CODEGEN Studio is distributed under the **Apache License 2.0**. See [LICENSE](LICENSE). Copyright © Petros Aristidou.
+This package is **mixed-licence**, and the badge above says so on purpose.
+
+- The Python and JavaScript in this repository are **Apache License 2.0**. See [LICENSE](LICENSE). Copyright © Petros Aristidou.
+- The **CODEGEN executables bundled in the wheel are not**. CODEGEN is the property of **Dr. Thierry Van Cutsem** and is distributed as a compiled executable under an **Academic Public License**: free of charge for non-commercial use (teaching, and research at universities and non-profit institutions); commercial use requires a separate licence from the authors. Its source is in none of the public STEPSS repositories. The licence text ships beside the executables as `cg_studio/bin/LICENSE-CODEGEN`.
+
+[STEPSS licensing](https://stepss.sps-lab.org/getting-started/license/) is the single owner of these facts; everything above is a summary of that page.
 
 ## Authors
 

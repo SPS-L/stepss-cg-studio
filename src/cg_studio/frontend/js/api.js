@@ -28,6 +28,7 @@ window.Api = (() => {
     async emitDSL(proj)  { const {dsl_text} = await _post('/emit', {project: proj}); return dsl_text; },
     runCodegen(dsl_text, model_type, model_name) {
       return _post('/run_codegen', {dsl_text, model_type, model_name}); },
+    getCodegenVersion()  { return _get('/codegen_version'); },
     getConfig()          { return _get('/config'); },
     updateConfig(cfg)    { return fetch('/config', {method:'PUT',
       headers:{'Content-Type':'application/json'}, body:JSON.stringify(cfg)}).then(r=>r.json()); }

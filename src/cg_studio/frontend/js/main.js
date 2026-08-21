@@ -200,7 +200,15 @@ window.Modal = {
     catch(e) { Toast.show('Cannot load config: '+e.message,'error'); return; }
 
     const overlay = document.getElementById('settings-overlay');
-    document.getElementById('cfg-codegen-path').value = cfg.codegen_path || '';
+    // Read-only, and fetched separately: this is a property of the installed
+    // package rather than a stored setting.
+    const verEl = document.getElementById('cfg-codegen-version');
+    verEl.textContent = '\u2026';
+    Api.getCodegenVersion()
+      .then(v=>{ verEl.textContent = v.bundled
+        ? v.version
+        : v.version+' (no build for '+v.platform+')'; })
+      .catch(()=>{ verEl.textContent = 'unknown'; });
     document.getElementById('cfg-host').value         = cfg.host         || '127.0.0.1';
     document.getElementById('cfg-port').value         = cfg.port         || 8765;
     document.getElementById('settings-status').textContent = '';
@@ -215,7 +223,6 @@ window.Modal = {
     statusEl.textContent = 'Saving\u2026';
     statusEl.className = '';
     const payload = {
-      codegen_path: document.getElementById('cfg-codegen-path').value.trim(),
       host:         document.getElementById('cfg-host').value.trim(),
       port:         parseInt(document.getElementById('cfg-port').value, 10) || 8765
     };
