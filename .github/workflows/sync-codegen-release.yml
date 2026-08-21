@@ -297,7 +297,33 @@ jobs:
           git checkout -b "$BRANCH"
           git add -A src/cg_studio/bin src/cg_studio/_bundled.py src/cg_studio/__init__.py
           git status --short
-          git commit -m "$MSG"
+          # An empty diff is the normal case for the rehearsal this pipeline is
+          # tested with: re-syncing the tag main already bundles re-downloads
+          # byte-identical executables and recomputes the same version, so
+          # nothing is staged and a plain `git commit` exits 1. The rehearsal is
+          # the documented way to exercise this workflow, so it must not be the
+          # one path that cannot run. --allow-empty keeps a commit for the later
+          # jobs to pin to, and a rehearsal pushes nothing anywhere.
+          #
+          # On a real run an empty diff is a genuine fault: a codegen sync that
+          # changed nothing should have been stopped by the duplicate guard, and
+          # a forced re-run bumps the counter and so always changes
+          # __init__.py. Releasing from it would spend a PyPI version on a tree
+          # identical to the one already published, so fail loudly instead.
+          if git diff --cached --quiet; then
+            if [ "$REHEARSAL" = "true" ]; then
+              echo "Rehearsal: nothing changed, committing empty so the gate has a tree to pin."
+              git commit --allow-empty -m "$MSG"
+            else
+              echo "FAIL: the refresh and the version bump together changed nothing."
+              echo "There is nothing to release: this tree is identical to main. A codegen"
+              echo "sync that changes nothing should have been caught by the duplicate"
+              echo "guard, and a forced re-run always bumps the counter in __init__.py."
+              exit 1
+            fi
+          else
+            git commit -m "$MSG"
+          fi
           if [ "$REHEARSAL" = "true" ]; then
             echo "Rehearsal: not pushing $BRANCH"
           else
