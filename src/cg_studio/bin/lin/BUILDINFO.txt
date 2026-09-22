@@ -1,7 +1,7 @@
-codegen_version  5.3
-codegen_tag      v5.3
-codegen_commit   9387163edf03cc7d7356c952c124d96151b2aac3
-built_utc        2026-08-21T10:11:57Z
+codegen_version  5.4
+codegen_tag      v5.4
+codegen_commit   fe2d09c147ab19499fa022600f3dd785ec835166
+built_utc        2026-09-22T20:13:02Z
 runner_image     ubuntu-24.04
 compiler         GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
 target           x86_64-linux-gnu
