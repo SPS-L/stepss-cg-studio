@@ -1,9 +1,9 @@
-codegen_version  5.4
-codegen_tag      v5.4
-codegen_commit   fe2d09c147ab19499fa022600f3dd785ec835166
-built_utc        2026-09-22T20:13:33Z
+codegen_version  5.5
+codegen_tag      v5.5
+codegen_commit   39b856315dd030a3edc8b26d7f0accd1dcc283e0
+built_utc        2026-11-02T11:28:08Z
 runner_image     windows-latest (MSYS2 MINGW64)
-compiler         GNU Fortran (Rev5, Built by MSYS2 project) 16.1.0
+compiler         GNU Fortran (Rev4, Built by MSYS2 project) 16.2.0
 target           x86_64-w64-mingw32
 fflags           -O2 -cpp -fdec -ffree-line-length-none -ffree-form
 ldflags          -static

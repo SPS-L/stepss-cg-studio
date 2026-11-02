@@ -1,11 +1,11 @@
-codegen_version  5.4
-codegen_tag      v5.4
-codegen_commit   fe2d09c147ab19499fa022600f3dd785ec835166
-built_utc        2026-09-22T20:13:13Z
+codegen_version  5.5
+codegen_tag      v5.5
+codegen_commit   39b856315dd030a3edc8b26d7f0accd1dcc283e0
+built_utc        2026-11-02T11:27:30Z
 runner_image     macos-15 (arm64)
 compiler         GNU Fortran (Homebrew GCC 16.2.0) 16.2.0
 target           aarch64-apple-darwin24
 fflags           -O2 -cpp -fdec -ffree-line-length-none -ffree-form
 ldflags          (none)
-runtime_floor    macOS 15.7.9 arm64; needs brew install gcc
+runtime_floor    macOS 15.8.2 arm64; needs brew install gcc
 built_with       build/Makefile.macos
