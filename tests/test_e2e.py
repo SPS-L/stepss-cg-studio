@@ -868,3 +868,44 @@ def test_emit_skips_ramses_pseudo_blocks():
     dsl = emit_dsl(norm)
     assert "ramses_in"  not in dsl
     assert "ramses_out" not in dsl
+
+
+# ---------------------------------------------------------------------------
+# Run Codegen — a failed run must say so (issue #5)
+# ---------------------------------------------------------------------------
+
+
+def test_failed_codegen_run_shows_the_error(app_page):
+    """A CODEGEN failure opens an error dialog carrying its stderr.
+
+    Regression: /run_codegen answers 200 with ``success: false`` when CODEGEN
+    crashes, but the frontend only looked for an ``error`` key the backend never
+    sends, so it opened the "Success" dialog with an empty body and a Download
+    button that did nothing.
+    """
+    import json
+    from pathlib import Path
+
+    page = app_page
+    example = Path(__file__).parent.parent / "examples" / "ENTSOE_simp_exc.txt"
+    page.set_input_files("#file-input-dsl", str(example))
+    page.wait_for_function(
+        "document.querySelectorAll('#drawflow .drawflow-node').length === 12",
+        timeout=5000,
+    )
+
+    crash = "Fortran runtime error: Missing comma between descriptors"
+    page.route("**/run_codegen", lambda route: route.fulfill(
+        status=200,
+        content_type="application/json",
+        body=json.dumps({
+            "f90_text": "", "f90_filename": "exc_ENTSOE_simp.f90",
+            "stdout": "     & tf1p2lim\n", "stderr": crash,
+            "returncode": 2, "success": False,
+        }),
+    ))
+    page.click("#btn-codegen")
+
+    expect(page.locator("#modal-title")).to_have_text("Codegen Error")
+    expect(page.locator("#modal-body")).to_contain_text(crash)
+    expect(page.locator("#modal-body")).to_contain_text("exited with code 2")

@@ -180,10 +180,18 @@ window.Modal = {
     const p=Store.get(); Toast.show('Running codegen\u2026');
     try {
       const res=await Api.runCodegen(dsl,p.model_type,p.model_name);
-      if(res.error){
-        await Modal.show('Codegen Error','<pre>'+_esc(res.error)+'</pre>','Close');
+      if(!res.success){
+        // The backend answers 200 even when CODEGEN fails, so the verdict is
+        // `success`, not the HTTP status. Show what CODEGEN printed: a crash
+        // reports on stderr, a DSL error on stdout.
+        const log=[res.stderr,res.stdout].filter(s=>s&&s.trim()).join('\n');
+        const why=res.returncode!==0
+          ? 'CODEGEN exited with code '+res.returncode+' and wrote no .f90.'
+          : 'CODEGEN wrote no .f90.';
+        await Modal.show('Codegen Error',
+          '<p>'+_esc(why)+'</p><pre>'+_esc(log.slice(-8000)||'(no output)')+'</pre>','Close');
       } else {
-        const f90=res.f90_text||res.output||'';
+        const f90=res.f90_text;
         const confirmed=await Modal.show(
           'Success \u2014 '+p.model_name+'.f90',
           '<pre>'+_esc(f90.slice(0,8000))+(f90.length>8000?'\n\u2026':'')+'</pre>',
